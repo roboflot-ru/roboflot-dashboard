@@ -1,0 +1,76 @@
+@import url("/app/lib/webix51/codebase/skins/material.css");
+
+.slider_css {
+    margin-top: 14px  !important;
+}
+
+.slider_css .webix_slider_left {
+    background-color: #0d8bf2 !important;
+}
+
+.slider_css .webix_slider_right {
+    background-color: #f3efe7 !important;
+}
+
+
+.list_mark{
+    width:30px;
+    text-align: center;
+    font-weight:bold;
+    float:right;
+    background-color: #2a96ff;
+    color:white;
+    border-radius:3px;
+}
+
+.list_bg_green{
+    background-color:#DDFFDD;
+}
+
+.list_bg_red{
+    background-color: #ffcfcc;
+}
+
+.list_bg_yellow{
+    background-color: #f3f28e;
+}
+
+.list_buttons {
+    padding-left: 10px;
+    height: 50px;
+    float:right;
+    display: none;
+}
+
+.webix_list_item:hover .list_buttons {
+    display: inline-block;
+}
+
+.slider_css .webix_slider_left {
+    background-color: #0d8bf2 !important;
+}
+
+.slider_css .webix_slider_right {
+    background-color: #f3efe7 !important;
+}
+
+
+.webix_gage_label {
+    font-size: 12pt !important;
+}
+
+.webix_gage_info {
+    font-size: 10pt !important;
+}
+
+.webix_gage_placeholder {
+    font-size: 10pt !important;
+}
+
+.webix_gage-value {
+    font-size: 16pt !important;
+}
+
+.webix_gage_min_range, .webix_gage_max_range {
+    display: none;
+}

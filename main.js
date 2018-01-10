@@ -142,13 +142,37 @@ myMAV.on("ready", function() {
                 ,gps_speed: -1
                 ,gps_cog: -1 // Course over ground (NOT heading, but direction of movement) in degrees * 100
                 ,sats: -1
+                ,press_a: -1 // Absolute pressure (hectopascal) (Units: hPa)
+                ,press_d: -1 // Differential pressure 1 (hectopascal) (Units: hPa)
+                ,temp: -100 //
+                ,roll: 0
+                ,pitch: 0
+                ,yaw: 0
+                ,rollspeed: 0
+                ,pitchspeed: 0
+                ,yawspeed: 0
+                ,pos_lat: 0
+                ,pos_lon: 0
+                ,pos_alt: 0
+                ,pos_rel_alt: 0
+                ,pos_vx: 0
+                ,pos_vy: 0
+                ,pos_vz: 0
+                ,pos_hdg: 0
             };
 
             //
             // Принимаем расшифрованные сообщения и запоминаем
             // Потом раз в секунду веб-клиенту отдаем скомпонованную телеметрию
+            // https://mavlink.io/en/messages/common.html
             myMAV.on("message", function(message) {
                 //console.log(message.id + ' ' + message.checksum);
+            });
+
+            // TODO 0 !!!
+            myMAV.on("HEARTBEAT", function(message, fields) {
+                //console.log('heartbeat');
+                //console.log(fields);
             });
 
             // 1
@@ -192,26 +216,39 @@ myMAV.on("ready", function() {
                 console.log('27 LOST');
             });
 
-            // TODO 29
+            // 29
             myMAV.on("SCALED_PRESSURE", function(message, fields) {
-                //telemetry.lat = fields.lat;
-                //telemetry.lon = fields.lon;
-                //telemetry.alt = fields.alt;
+                telemetry.press_a = Math.round(fields.press_abs);
+                telemetry.press_d = fields.press_diff;
+                telemetry.temp = Math.round(fields.temperature/100); // Temperature measurement (0.01 degrees celsius) (Units: cdegC)
             });
 
-            // TODO 30
+            // 30
             myMAV.on("ATTITUDE", function(message, fields) {
-
+                const pi = Math.PI;
+                telemetry.roll = Math.round(fields.roll * (180/pi)); // Roll angle (rad, -pi..+pi) (Units: rad)
+                telemetry.pitch = Math.round(fields.pitch * (180/pi));
+                telemetry.yaw = Math.round(fields.yaw * (180/pi));
+                telemetry.rollspeed = Math.round(fields.rollspeed * (180/pi)); // Roll angular speed (rad/s) (Units: rad/s)
+                telemetry.pitchspeed = Math.round(fields.pitchspeed * (180/pi));
+                telemetry.yawspeed = Math.round(fields.yawspeed * (180/pi));
             });
 
             // TODO 32
             myMAV.on("LOCAL_POSITION_NED", function(message, fields) {
-
+                //telemetry.press_d = fields.press_diff;
             });
 
-            // TODO 33
+            // 33
             myMAV.on("GLOBAL_POSITION_INT", function(message, fields) {
-
+                telemetry.pos_lat = fields.lat/10000000; // Latitude, expressed as degrees * 1E7 (Units: degE7)
+                telemetry.pos_lon = fields.lon/10000000;
+                telemetry.pos_alt = fields.alt/1000; // Altitude in meters, expressed as * 1000 (millimeters), AMSL (not WGS84 - note that virtually all GPS modules provide the AMSL as well) (Units: mm)
+                telemetry.pos_rel_alt = fields.relative_alt/1000; // Altitude above ground in meters, expressed as * 1000 (millimeters) (Units: mm)
+                telemetry.pos_vx = fields.vx/100; // Ground X Speed (Latitude, positive north), expressed as m/s * 100 (Units: cm/s)
+                telemetry.pos_vy = fields.vy/100;
+                telemetry.pos_vz = fields.vz/100;
+                telemetry.pos_hdg = Math.round(fields.hdg/100); // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees. If unknown, set to: UINT16_MAX (Units: cdeg)
             });
 
             // TODO 35
@@ -298,72 +335,6 @@ myMAV.on("ready", function() {
         });
     });
 
-
-
-    /*
-    Итак, сюда пришла телеметрия, ее нужно передать web-клиенту, если он есть
-    У каждого робота должен быть свой ID и подключение к сокету должно быть с его использованием
-    После соединения с роботом проверяем его регистрацию и создаем канал для записи туда его телеметрии
-     */
-
-    /*
-
-	myMAV.on("GPS_STATUS", function(message, fields) {
-	    console.log('gps status');
-		console.log(fields);
-	});
-
-	myMAV.on("GPS_RAW_INT", function(message, fields) {
-	    console.log('gps raw');
-		console.log(fields);
-	});
-
-
-
-	myMAV.on("STATUSTEXT", function(message, fields) {
-	    console.log('status text');
-		console.log(fields);
-	});
-
-	myMAV.on("ATTITUDE", function(message, fields) {
-	    console.log('attitude');
-		console.log(fields);
-	});
-
-
-	myMAV.on("INFO", function(message, fields) {
-	    console.log('info');
-		console.log(fields);
-	});
-
-
-
-	myMAV.on("HEARTBEAT", function(message, fields) {
-	    console.log('heartbeat');
-		console.log(fields);
-	});
-
-	myMAV.on("SYS_STATUS", function(message, fields) {
-	    console.log('sys status');
-		console.log(fields);
-	});
-
-    myMAV.on("SYSTEM_TIME", function(message, fields) {
-	    console.log('system time');
-		console.log(fields);
-	});
-
-    myMAV.on("SCALED_IMU", function(message, fields) {
-	    console.log('scaled imu');
-		console.log(fields);
-	});
-
-    myMAV.on("GLOBAL_POSITION_INT", function(message, fields) {
-	    console.log('GLOBAL_POSITION_INT');
-		console.log(fields);
-	});
-	*/
-
 });
 
 
@@ -374,22 +345,3 @@ myMAV.on("ready", function() {
 http.listen(3000, function(){
   console.log('listening on *:3000');
 });
-
-    /*
-var app = require('express')();
-var server = require('http').createServer(app);
-var io = require('socket.io')(server);
-io.on('connection', function(){
-    console.log('connected');
-});
-server.listen(3000);
-
-var socket = require('engine.io-client')('ws://localhost:3000');
-socket.on('open', function(){
-    console.log('opened');
-    socket.on('message', console.log);
-    socket.on('close', function(){
-        console.log('closed');
-    });
-});
-        */

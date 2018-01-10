@@ -151,6 +151,15 @@ define({
                     'GPS Fix: #gps_fix_type# <br/>' +
                     'Sys load: #sys_load# %<br/>' +
                     'Включен: #uptime_formatted# <br/>'
+                    + '<br/>'
+                    + 'Давление воздуха: #press_a# гПа<br/>'
+                    + 'Температура: #temp#<sup>o</sup>C <br/>'
+                    + 'Крен: #roll#<sup>o</sup>, Тангаж: #pitch#<sup>o</sup>, Компас: #yaw#<sup>o</sup> <br/>'
+                    + '<br/>'
+                    + 'PLat: #pos_lat#, PLon: #pos_lon#<br/>'
+                    + 'PAlt: #pos_alt#, PRelAlt: #pos_rel_alt#<br/>'
+                    + 'VX: #pos_vx#, VY: #pos_vy#, VZ: #pos_vz#<br/>'
+                    + 'PHDG: #pos_hdg#<br/>'
                     // + 'Бортовое время: #time_formatted# <br/>'
                 ,data: []
             }

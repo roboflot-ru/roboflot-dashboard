@@ -67,13 +67,13 @@ define(['models'], function(models){
     };
 
     const reset_dashboard = function(){
-        $$('robot_status_list').clearAll();
-        $$('robot_status_list').data.unsync();
+        //$$('robot_status_list').clearAll();
+        //$$('robot_status_list').data.unsync();
 
         $$('robot_telemetry_list').unbind();
         $$('robot_speed_gage').unbind();
         $$('robot_sats_gage').unbind();
-        $$('robot_cpu_temp_gage').unbind();
+        $$('robot_sys_load_gage').unbind();
     };
 
     const reset_form = function(){
@@ -189,7 +189,7 @@ define(['models'], function(models){
             // открываем саму панель
             $$('side_view1').setValue('robot_dashboard_view');
 
-            var robot_id = item.toString(),
+            let robot_id = item.toString(),
                 robot = null;
 
             // Если нет параметра, то оставляем старые данные
@@ -205,12 +205,12 @@ define(['models'], function(models){
                 $$('side_view1').setValue('robots_list_view');
             }
 
-            // Загружаем данные нового объекта из списка
-            $$('robot_status_list').data.sync(robot.status_list());
+            // Загружаем данные нового объекта из списка и подвязываем к изменениям
+            //$$('robot_status_list').data.sync(robot.status_list());
             $$('robot_telemetry_list').bind(robot.telemetry_record());
             $$('robot_speed_gage').bind(robot.gages_data('speed'));
             $$('robot_sats_gage').bind(robot.gages_data('sats'));
-            $$('robot_cpu_temp_gage').bind(robot.gages_data('cpu_temp'));
+            $$('robot_sys_load_gage').bind(robot.gages_data('sys_load'));
 
             // Загрузить в форму id объекта (форма потом каждый раз загружает данные по id)
             $$('robot_form').setValues(robot.form_data());
@@ -281,40 +281,6 @@ define(['models'], function(models){
         //
         // Логин пользователя
         ,user_login: function(){
-            // Вход с помощью Гугла
-            //const provider = new firebase.auth.GoogleAuthProvider();
-
-            /*
-            // Проверяем параметры после входа
-            firebase.auth().getRedirectResult().then(function(result) {
-                // Если пользователь не ввел логин и пароль, то возвращаем его их вводить
-                if( !result.user ){
-                    firebase.auth().signInWithRedirect(provider);
-                    return;
-                }
-                // google_access_token = result.credential.accessToken;
-                //user = result.user; firebase.auth().currentUser.uid
-
-                // Запишем на кнопку имя пользователя
-                $$('user_button').config.label = result.user.displayName;
-                $$('user_button').refresh();
-
-                // Разблокируем главный вид
-                $$('main_view').enable();
-
-                // Инициализация пользователя и его устройств
-                robots_init();
-
-            })
-
-            // ошибка авторизации
-            .catch(function(error) {
-                //user_email = error.email;
-                //let credential = error.credential;
-                //console.log(error.code + ' ' + error.message);
-            });
-
-            */
 
             // Инициализация пользователя и его устройств
             robots_init();
@@ -324,117 +290,8 @@ define(['models'], function(models){
         //
         // Логаут пользователя
         ,user_logout: function(){
-            /*
-            firebase.auth().signOut().then(function() {
-                // Блокируем главный вид
-                $$('main_view').disable();
-                // И перегружаем таблицу
-                window.location = '/';
-            }).catch(function(error) {
-                //console.log(error);
-            });
-            */
+
         }
 
     }
 });
-
-
-
-//
-    // Подписка на список устройств // Каждый раз загружает весь список при любом изменении!!
-    /*
-    robots_list.on('value', function(list) {
-        console.log('value event');
-        list.forEach(function(child) {
-            console.log('each child');
-            console.log(child.key);
-            console.log(child.val());
-        });
-    });
-    */
-
-    // Коллекция для списка и его привязка
-    //const robots_list_collection = new webix.DataCollection({data:[]});
-
-    //$$('robots_list').sync(robots_list_collection);
-
-
-//
-    // Инициализация вида
-    /*
-    const init_view = function(){
-        let play_in_progress = false;
-
-        const play_track = function(){
-            if( !play_in_progress ){
-                play_in_progress = setInterval(function(){
-                    let slider_value = $$('time-slider').getValue();
-                    $$('time-slider').setValue(slider_value + 1);
-                }, 1000);
-            }
-        };
-
-        const stop_track = function(){
-            if( play_in_progress ){
-                clearInterval(play_in_progress);
-                play_in_progress = null;
-            }
-        };
-
-
-        const set_time_label = function(){
-            let slider_value = $$('time-slider').getValue();
-
-            //
-            // Установить время в панели
-            let hour = Math.floor(slider_value/3600);
-            let min = Math.floor((slider_value - hour*3600)/60);
-            let sec = slider_value - hour*3600 - min*60;
-
-            $$('time-label').setValue(common.time_string(hour, min, sec));
-        };
-
-        // Переключение вида карты, фото и телеметрии на позицию слайдера
-        const set_frame = function(){
-
-            set_time_label();
-
-            //
-            // TODO Переставить объект на карте
-
-            //
-            // TODO переставить центр карты если нужно
-
-            //
-            // TODO Перерисовать след
-
-            //
-            // TODO Загрузить изображение
-
-            //
-            // TODO Обновить таблицу с телеметрией
-
-
-
-        };
-
-
-        // Обработка событий
-        $$('time-slider').attachEvent('onChange', set_frame);
-
-        $$('time-slider').attachEvent('onSliderDrag', set_time_label);
-
-        $$('playstop').attachEvent('onChange', function(value){
-            if( value ){
-                play_track();
-            }
-            else {
-                stop_track();
-            }
-        });
-
-    };
-
-    init_view();
-    */

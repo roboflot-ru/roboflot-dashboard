@@ -100,7 +100,8 @@ define(['views_parts', 'helpers'], function(parts, helpers){
             $$('robot_share_save').attachEvent('onItemClick', controllers.robot_share_save);
 
             //
-            // Проверка устройств онлайн
+            // TODO Проверка устройств онлайн
+            /*
             setInterval(function(){
                 // Если от устройства нет данных больше, чем 30 секунд, то считаем его оффлайн
                 const check_ts = Math.round(new Date().getTime()/1000)-30;
@@ -129,7 +130,7 @@ define(['views_parts', 'helpers'], function(parts, helpers){
                 //$$('robots_list').sort('#online# #name#', 'desc'); // TODO сортировка большого списка
 
             }, 3000); // каждые 3 секунды
-
+            */
         }
 
     }

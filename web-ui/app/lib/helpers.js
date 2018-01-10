@@ -9,7 +9,7 @@ define({
     ,readable_seconds: function(seconds){
         if( !seconds ) seconds = 0;
 
-        if( seconds > 3600*24 ){
+        if( seconds > 3600*200 ){ // 200 часов
             return 'очень давно';
         }
 
@@ -22,7 +22,7 @@ define({
         }
 
         if( seconds >= 3600 ){
-            return Math.round(seconds/3600) + 'ч' + Math.round((seconds%3600)/60) + 'мин';
+            return Math.round(seconds/3600) + 'ч ' + Math.round((seconds%3600)/60) + 'мин';
         }
 
     }

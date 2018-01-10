@@ -2,6 +2,8 @@
 
  */
 
+const socket = io('http://hub.roboflot.ru:3000?web_id=1');
+
 require(['config'], function() {
     console.log('2');
     require(['webix'], function() {
@@ -22,6 +24,14 @@ require(['config'], function() {
                 //
                 // Авторизуем пользователя
                 controllers.user_login();
+
+                socket.on('connect', function(){
+                    console.log('socket connected');
+                });
+
+                socket.on('disconnect', function(){
+                    console.log('socket disconnected');
+                });
 
             });
         });

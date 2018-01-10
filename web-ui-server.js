@@ -6,8 +6,11 @@ const port_to_listen = 8081;
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
+const http = require('http').Server(app);
+const io = require('socket.io')(http);
 
 const r = require('rethinkdb');
+
 
 app.use(express.static('web-ui'));
 
@@ -93,6 +96,39 @@ r.table('authors').get('7644aaf2-9928-4231-aa68-4e65e31bf219').
  */
 
 // Web-клиент подписывается на телеметрию робота и показывает ее
+
+/*
+// Соединение с клиентом
+io.on('connection', function(socket){
+    console.log('a user connected');
+
+    // приветсвенное сообщение
+    socket.emit('hello', 'hello from server');
+
+    // клиент отсоединился
+    socket.on('disconnect', function(){
+        console.log('user disconnected');
+    });
+
+    // пришло сообщение
+    socket.on('hello', function(msg){
+        console.log(msg);
+    });
+
+    socket.join('some_room');
+
+    io.to('some_room').emit('some event');
+
+    /*
+    io.on('connection', function(socket){
+      socket.on('say to someone', function(id, msg){
+        socket.broadcast.to(id).emit('my message', msg);
+      });
+    });
+     *
+
+});
+*/
 
 
 let connection = null;

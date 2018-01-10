@@ -25,7 +25,7 @@ define({
             {
                 view: 'list'
                 ,id: 'robots_list'
-                ,template: '#name# (#status_text#)' // '<div class="list_mark">#online#</div> #name#'
+                ,template: '#name#' // '<div class="list_mark">#online#</div> #name#'
                 ,scheme:{
                     $change:function(obj){
                         if( 'online' == obj.status ){
@@ -119,18 +119,18 @@ define({
                     // Температура процессора
                     ,{
                         view: "gage",
-                        id:"robot_cpu_temp_gage",
+                        id:"robot_sys_load_gage",
                         value: 0,
                         width: 160,
                         minRange: 0,
                         maxRange: 100,
-                        label: 'Т процессора',
-                        placeholder: "<sup>o</sup>C",
+                        label: 'Системная нагрузка',
+                        placeholder: "%",
                         scale:4,
                         stroke:9,
                         color:function(val){
-                            if (val > 60) return "red";
-                            if (val > 50) return "orange";
+                            if (val > 90) return "red";
+                            if (val > 70) return "orange";
                             return "green";
                         }
                     }
@@ -144,24 +144,58 @@ define({
                 id: 'robot_telemetry_list'
                 ,view: 'template'
                 ,template: '' +
-                    'Скорость: #speed# км/ч<br/>' +
+                    'Скорость: #gps_speed# м/с<br/>' +
                     'Координаты: #lat#, #lon# <br/>' +
+                    'Высота по GPS: #alt# м<br/>' +
                     'Спутников: #sats# <br/>' +
-                    'Темп процессора: #cpu_temp# <sup>o</sup>C<br/>' +
-                    'Исп памяти: #memory_use#% <br/>' +
-                    'Включен: #uptime_formatted# <br/>' +
-                    'Время: #time_formatted# <br/>' +
-                    'hdop: #hdop# <br/>'
+                    'GPS Fix: #gps_fix_type# <br/>' +
+                    'Sys load: #sys_load# %<br/>' +
+                    'Включен: #uptime_formatted# <br/>'
+                    // + 'Бортовое время: #time_formatted# <br/>'
                 ,data: []
             }
 
-            // Список включений/отключений
+            // кнопки Взлет, Круг, Посадка
             ,{
+                height: 50
+                ,cols: [
+                    {
+                        view: 'button'
+                        ,type: 'icon'
+                        ,id: 'takeoff_button'
+                        ,label: 'Взлет'
+                        ,icon: 'arrow-up'
+                        ,css: 'button_danger'
+                    }
+
+                    ,{
+                        view: 'button'
+                        ,type: 'icon'
+                        ,id: 'mission_button'
+                        ,label: 'Круг'
+                        ,icon: 'globe'
+                        ,css: 'button_primary'
+                    }
+
+                    ,{
+                        view: 'button'
+                        ,type: 'icon'
+                        ,id: 'landing_button'
+                        ,label: 'Посадка'
+                        ,icon: 'arrow-down'
+                        ,css: 'button_danger'
+                    }
+                ]
+            }
+
+
+            // Список включений/отключений
+            /*,{
                 view: 'list'
                 ,id: 'robot_status_list'
                 ,template: '#time# #text#'
                 ,data: []
-            }
+            }*/
 
         ]
     }

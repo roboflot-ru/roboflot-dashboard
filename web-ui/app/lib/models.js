@@ -8,7 +8,7 @@ define(['helpers', 'controllers'], function(helpers, controllers){
             // Цвет маркера и трека по умолчанию
             robot.color = robot.color ? robot.color : '#87faff';
 
-            //var last_telemetry = 0;
+            let last_telemetry = null;
             //var markers_counter = 1;
 
             //
@@ -40,10 +40,11 @@ define(['helpers', 'controllers'], function(helpers, controllers){
             // Список доступа пользователей
             const shares_list = new webix.DataCollection();
 
-            var gages_data = {
+            let gages_data = {
                 speed: new webix.DataValue(0),
                 sats: new webix.DataValue(0),
                 cpu_temp: new webix.DataValue(0),
+                sys_load: new webix.DataValue(0),
                 EMPTY: new webix.DataValue('')
             };
 
@@ -73,62 +74,57 @@ define(['helpers', 'controllers'], function(helpers, controllers){
             $$('robots_list').add({
                 id: robot.id,
                 name: robot.name,
-                status_text: ''
+                status: 'offline'
             });
 
+            // Подключаемся к каналу телеметрии этого робота по его id
+            socket.on('telem', function (data) {
+                if( data.robot_id == robot.id ){
 
+                    last_telemetry = data.telemetry;
+
+                    // Объект в списке хранит все данные
+                    let item = $$('robots_list').getItem(robot.id);
+                    let robot_time = new Date(Math.round(last_telemetry.time_u/1000));
+                    //console.log(last_telemetry.time_b + '   -   ' + last_telemetry.time_u + '   -   ' + last_telemetry.server_time + '   -   ' + new Date().getTime());
+
+                    //last_telemetry.time_formatted = helpers.time_string(robot_time.getHours(), robot_time.getMinutes(), robot_time.getSeconds());
+                    last_telemetry.uptime_formatted = helpers.readable_seconds(Math.round(last_telemetry.time_b/1000));
+
+                    telemetry_record.setValues(last_telemetry);
+
+                    // Переписываем нужные данные (gps_data, system_data)
+                    let gps_speed = Math.round(last_telemetry.gps_speed ? last_telemetry.gps_speed : 0);
+                    if( gps_speed < 0 ) gps_speed = 0;
+
+                    //item.speed = gps_speed;
+                    //item.sats = last_telemetry.sats > 0 ? last_telemetry.sats  : 0;
+                    //item.time = last_telemetry.time_formatted;
+                    item.status = 'online';
+
+                    gages_data.speed.setValue(gps_speed);
+                    gages_data.sats.setValue(last_telemetry.sats);
+                    gages_data.sys_load.setValue(last_telemetry.sys_load);
+
+                    // Если вдруг из точек не получилось добыть местоположение
+                    if( last_telemetry.lat != 0 && last_telemetry.lon != 0 ){
+                        last_position.coords = new google.maps.LatLng({lat: last_telemetry.lat, lng: last_telemetry.lon});
+                        // console.log(last_position.coords);
+
+                        last_position.track = last_telemetry.head;
+
+                        set_marker_position();
+                    }
+
+                    robot.last_data = Math.round(new Date().getTime()/1000);
+
+                    // Сохраняем текущую информацию в списке
+                    $$('robots_list').updateItem(robot.id, item);
+                }
+            });
 
             /*
-            // Ссылка на устройство в БД
-            const robot_ref = firebase.database().ref('robots/' + robot.id );
 
-            //
-            // подключаемся к данным телеметрии устройства
-            const telem_ref = robot_ref.child('realtime_data/telemetry');
-
-            //
-            // при получении новых данных, обновляем устройство в списке и положение маркера на карте
-            telem_ref.on('value', function(data){
-                // Если данные пустые, то ничего не делаем
-                const values = data.val();
-                if( !values ) return;
-
-                last_telemetry = values;
-
-                // Объект в списке хранит все данные
-                const item = $$('robots_list').getItem(robot.id);
-                const robot_time = new Date(values.robot_time*1000);
-                values.time_formatted = helpers.time_string(robot_time.getHours(), robot_time.getMinutes(), robot_time.getSeconds());
-                values.uptime_formatted = helpers.readable_seconds(values.uptime);
-
-                telemetry_record.setValues(values);
-
-                // Переписываем нужные данные (gps_data, system_data)
-                var gps_speed = Math.round(values.speed ? values.speed : 0);
-                if( gps_speed < 0 ) gps_speed = 0;
-                item.speed = gps_speed;
-                item.sats = values.sats ? values.sats  : 0;
-                item.time = values.time_formatted;
-                item.ts = values.robot_time;
-
-                gages_data.speed.setValue(gps_speed);
-                gages_data.sats.setValue(item.sats);
-                gages_data.cpu_temp.setValue(values.cpu_temp);
-
-                // Если вдруг из точек не получилось добыть местоположение
-                if( !last_position.coords && values.lat && values.lon ){
-                    last_position.coords = new google.maps.LatLng({lat: values.lat, lng: values.lon});
-                    last_position.track = values.track;
-
-                    set_marker_position();
-                }
-
-                robot.last_data = Math.round(new Date().getTime()/1000);
-
-                // Сохраняем текущую информацию в списке
-                $$('robots_list').updateItem(robot.id, item);
-
-            });
 
             //
             // Подключаемся к данным статуса
@@ -307,7 +303,7 @@ define(['helpers', 'controllers'], function(helpers, controllers){
 
                     // Обнвить цвет линии
                     path_params.strokeColor = robot.color;
-                    robot_way.setOptions(path_params);
+                    //robot_way.setOptions(path_params);
                 }
 
                 // Коллекция списка для статусов

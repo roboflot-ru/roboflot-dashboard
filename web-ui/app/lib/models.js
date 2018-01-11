@@ -123,6 +123,11 @@ define(['helpers', 'controllers'], function(helpers, controllers){
                 }
             });
 
+            // Картинка
+            socket.on('image', function (image) {
+                 document.getElementById('robot_video').setAttribute("src", "data:image/jpeg;base64," + image.toString("base64") );
+            });
+
             /*
 
 

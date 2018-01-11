@@ -23,6 +23,7 @@ r.connect( {host: 'localhost', port: 28015}, function(err, conn) {
     connection = conn;
 });
 
+
 redisClient.on('ready',function() {
  console.log("Redis is ready");
 });
@@ -203,17 +204,17 @@ myMAV.on("ready", function() {
 
             // TODO 25
             myMAV.on("GPS_STATUS", function(message, fields) {
-                console.log('25 LOST');
+                //console.log('25 LOST');
             });
 
             // TODO 26
             myMAV.on("SCALED_IMU", function(message, fields) {
-                console.log('26 LOST');
+                //console.log('26 LOST');
             });
 
             // TODO 27
             myMAV.on("RAW_IMU", function(message, fields) {
-                console.log('27 LOST');
+                //console.log('27 LOST');
             });
 
             // 29
@@ -302,6 +303,11 @@ myMAV.on("ready", function() {
                 telemetry.server_time = new Date().getTime();
                 io.to('robot_' + robot_id).emit('telem', {robot_id: robot_id, telemetry: telemetry});
             }, 1000);
+
+            socket.on('image', function(image){
+               io.to('robot_' + robot_id).emit('image', image);
+               console.log('img emit');
+            });
         }
         // Web-клиент
         else if( web_id ) {
@@ -325,9 +331,7 @@ myMAV.on("ready", function() {
 
 
         }
-        else {
-            console.log('unknown');
-        }
+
 
         // клиент отсоединился
         socket.on('disconnect', function(){
@@ -336,8 +340,6 @@ myMAV.on("ready", function() {
     });
 
 });
-
-
 
 
 

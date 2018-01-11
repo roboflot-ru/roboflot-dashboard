@@ -74,6 +74,12 @@ define({
                 ]
             }
 
+            // video
+            ,{
+                height: 270
+                ,template: '<div style="align-content: center"><img id="robot_video" style="display:block; width:320px; height:240px;" src="" /></div>'
+            }
+
             // Панель приборов
             ,{
                 height: 150
@@ -143,6 +149,7 @@ define({
             ,{
                 id: 'robot_telemetry_list'
                 ,view: 'template'
+                ,scroll: 'y'
                 ,template: '' +
                     'Скорость: #gps_speed# м/с<br/>' +
                     'Координаты: #lat#, #lon# <br/>' +
@@ -196,6 +203,7 @@ define({
                     }
                 ]
             }
+
 
 
             // Список включений/отключений

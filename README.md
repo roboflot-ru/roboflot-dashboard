@@ -1,4 +1,5 @@
-# roboflot-dashboard
+# Description
 
-Web-панель управления автономными роботами
+web-based GCS (ground control station)
+
 

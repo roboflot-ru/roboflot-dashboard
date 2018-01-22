@@ -2,7 +2,7 @@
 
  */
 
-const socket = io('http://hub.roboflot.ru:3000?web_id=1');
+const socket = io_server('http://hub.roboflot.ru:3000?web_id=1');
 
 require(['config'], function() {
     console.log('2');

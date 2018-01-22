@@ -2303,7 +2303,7 @@ webix.event(window,"unload",function(){
 
 var _cache = {};
 var _csp_cache = {};
-var newlines = new RegExp("(\\r\\n|\\n)","g");
+var newlines = new RegExp("(\\rethinkdb\\n|\\n)","g");
 var quotes   = new RegExp("(\\\")","g");
 var slashes  = new RegExp("(\\\\)","g");
 var escape = {
@@ -24027,7 +24027,7 @@ webix.extend(webix.ui.datatable,{
 			if (this._columns[i].math) {
 				var col = this.columnId(i);
 				var math = '=' + this._columns[i].math;
-				math = math.replace(/\$r/g, '#$r#');
+				math = math.replace(/\$r/g, '#$rethinkdb#');
 				math = math.replace(/\$c/g, '#$c#');
 				if (row)
 					row[col] = this._parse_relative_expr(math, row.id, col);
@@ -25446,7 +25446,7 @@ webix.attachEvent("onDataTable", function(table){
 	};
 	SVG.getCircle = function(p, radius, css, attrs){
 		attrs = joinAttributes(attrs);
-		return '<circle class="'+css+'" cx="'+ p.x+'" cy="'+ p.y+'" r="'+radius+'" '+attrs+'/>';
+		return '<circle class="'+css+'" cx="'+ p.x+'" cy="'+ p.y+'" rethinkdb="'+radius+'" '+attrs+'/>';
 	};
 	SVG.getRect = function(x, y, width, height, css, attrs){
 		attrs = joinAttributes(attrs);
@@ -27745,7 +27745,7 @@ webix.protoUI({
             borderWidth:1,
             color: "#ffffff",
             alpha:1,
-            type:"r",
+            type:"rethinkdb",
             shadow:false
 		},
 		shadow:true,
@@ -28779,7 +28779,7 @@ webix.protoUI({
     *   @param: a - angle
     *   @param: x - start x position
     *   @param: y - start y position
-	*   @param: r - destination to the point
+	*   @param: rethinkdb - destination to the point
 	*/
      _getPositionByAngle:function(a,x,y,r){
          a *= (-1);
@@ -31032,7 +31032,7 @@ webix.extend(webix.ui.chart, {
                 borderColor:"#636363",
                 borderWidth:1,
                 color: "#ffffff",
-                type:"r",
+                type:"rethinkdb",
                 shadow: false
             },
     	    line:{
@@ -31064,7 +31064,7 @@ webix.extend(webix.ui.chart, {
                 borderColor:"#fe5916",
                 radius:2,
                 borderWidth:1,
-                type:"r"
+                type:"rethinkdb"
     	    },
             alpha:1
         },
@@ -31101,7 +31101,7 @@ webix.extend(webix.ui.chart, {
                 borderColor:"#3f83ff",
                 borderWidth:1,
                 color:"#3f83ff",
-                type:"r",
+                type:"rethinkdb",
                 shadow:false,
                 alpha:0.6
             }
@@ -42802,7 +42802,7 @@ function getSpans(view, options){
             var xc = options.xCorrection || 0;
             var yc = options.yCorrection || 0;
             for(var row in pull){
-                //{ s:{c:1, r:0}, e:{c:3, r:0} }
+                //{ s:{c:1, rethinkdb:0}, e:{c:3, rethinkdb:0} }
                 var cols = pull[row];
                 for(var col in cols){
                     var sc = view.getColumnIndex(col) - xc;
@@ -45160,14 +45160,14 @@ webix.protoUI({
             kx = this.config.scale,
             x = this.$width;
 
-        curves.setAttribute("r", (x / kx));
+        curves.setAttribute("rethinkdb", (x / kx));
         curves.setAttribute("strokeDasharray", Math.round(Math.PI * x / kx));
         curves.style.r = x / kx;
         curves.style.strokeDasharray = Math.round(Math.PI * x / kx);
 
         gageInfo.setAttribute('style', "width: "+Math.round((x / kx) * 2)+"px;");
         this._gage.setAttribute('style', "height: "+(x / kx + 20)+"px;");
-        this._circleGradient.setAttribute("r", (x / kx));
+        this._circleGradient.setAttribute("rethinkdb", (x / kx));
         this._circleGradient.setAttribute('style', "stroke-dasharray: " + Math.round(this.gradientLength * Math.PI * x / kx) + ", 1900;");
         this._draw_line(curves.style.r);
     },
@@ -45231,7 +45231,7 @@ webix.protoUI({
     _setDefaultView: function() {
         this.gradientLength = 0;
         this._setDash();
-        this.$view.innerHTML = '<div class="webix_gage_label"><span>'+(this.config.label||"")+'</span></div><svg class="webix_gage" style="height:300px; position: relative;"><circle class="webix_gage_curves" r="0" cx="50%" cy="0" stroke="#EEEEEE" stroke-width="'+this.config.stroke+'%" fill="none"></circle><circle class="webix_gage_gradient" r="0" stroke="'+this.defaultColor+'" cx="50%" cy="0" stroke-width="'+this.config.stroke+'%" fill="none" style="stroke-dasharray: 0, 1900;"></circle><line class="webix_gage_gradient_point" x1="0" x2="0" y1="0" y2="0" style="stroke:#B0B0B0; stroke-width:4;"></line></svg><div class="webix_gage_info"><div class="webix_gage_min_range">'+this.config.minRange+'</div><div class="webix_gage_max_range">'+this.config.maxRange+'</div><div class="webix_gage_placeholder"><div class="webix_gage-value">'+this.config.value+'</div><div class="webix_gage_range_info">'+(this.config.placeholder||"")+'</div></div></div>';
+        this.$view.innerHTML = '<div class="webix_gage_label"><span>'+(this.config.label||"")+'</span></div><svg class="webix_gage" style="height:300px; position: relative;"><circle class="webix_gage_curves" rethinkdb="0" cx="50%" cy="0" stroke="#EEEEEE" stroke-width="'+this.config.stroke+'%" fill="none"></circle><circle class="webix_gage_gradient" rethinkdb="0" stroke="'+this.defaultColor+'" cx="50%" cy="0" stroke-width="'+this.config.stroke+'%" fill="none" style="stroke-dasharray: 0, 1900;"></circle><line class="webix_gage_gradient_point" x1="0" x2="0" y1="0" y2="0" style="stroke:#B0B0B0; stroke-width:4;"></line></svg><div class="webix_gage_info"><div class="webix_gage_min_range">'+this.config.minRange+'</div><div class="webix_gage_max_range">'+this.config.maxRange+'</div><div class="webix_gage_placeholder"><div class="webix_gage-value">'+this.config.value+'</div><div class="webix_gage_range_info">'+(this.config.placeholder||"")+'</div></div></div>';
         this._circleGradient = this.$view.querySelector('.webix_gage_gradient');
         this._gageGradientPoint = this.$view.querySelector('.webix_gage_gradient_point');
         this._gage = this.$view.querySelector('.webix_gage');

@@ -7,7 +7,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 const http = require('http').Server(app);
-const io = require('socket.io')(http);
+const io = require('socket.io_server')(http);
 
 const r = require('rethinkdb');
 
@@ -69,7 +69,7 @@ app.get('/data/robots/', function (req, res) {
 https://rethinkdb.com/docs/guide/javascript/
 
 
-r.table('authors').run(connection, function(err, cursor) {
+rethinkdb.table('authors').run(connection, function(err, cursor) {
     if (err) throw err;
     cursor.toArray(function(err, result) {
         if (err) throw err;
@@ -77,7 +77,7 @@ r.table('authors').run(connection, function(err, cursor) {
     });
 });
 
-r.table('authors').filter(r.row('name').eq("William Adama")).
+rethinkdb.table('authors').filter(rethinkdb.row('name').eq("William Adama")).
     run(connection, function(err, cursor) {
         if (err) throw err;
         cursor.toArray(function(err, result) {
@@ -86,7 +86,7 @@ r.table('authors').filter(r.row('name').eq("William Adama")).
         });
     });
 
-r.table('authors').get('7644aaf2-9928-4231-aa68-4e65e31bf219').
+rethinkdb.table('authors').get('7644aaf2-9928-4231-aa68-4e65e31bf219').
     run(connection, function(err, result) {
         if (err) throw err;
         console.log(JSON.stringify(result, null, 2));
@@ -99,7 +99,7 @@ r.table('authors').get('7644aaf2-9928-4231-aa68-4e65e31bf219').
 
 /*
 // Соединение с клиентом
-io.on('connection', function(socket){
+io_server.on('connection', function(socket){
     console.log('a user connected');
 
     // приветсвенное сообщение
@@ -117,10 +117,10 @@ io.on('connection', function(socket){
 
     socket.join('some_room');
 
-    io.to('some_room').emit('some event');
+    io_server.to('some_room').emit('some event');
 
     /*
-    io.on('connection', function(socket){
+    io_server.on('connection', function(socket){
       socket.on('say to someone', function(id, msg){
         socket.broadcast.to(id).emit('my message', msg);
       });

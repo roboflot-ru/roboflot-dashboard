@@ -1,132 +1,117 @@
 /**
- * Created by nee on 06.01.2018.
+
+ About this script
+
+ This is mavlink(board)->socket.io->mavlink(server) bridge
+
+ It receives mavlink messages via socket.io, decodes them and transmits to client browser (web-based GCS).
+ Also it can send mavlink messages back to board with commands or data
+
  */
 
-// Получить данные с дрона
+//
+//  CONFIGURATION
+//
 
+// system_id and component_id as set on your board (both defaults to 1)
+const BOARD_SYS_ID = 1;
+const BOARD_COMP_ID = 1;
+
+const MAVLINK_VERSION = "v1.0";
+const MAVLINK_MSG_DEF = ["common", "ardupilotmega"];
+
+// Redis server config
+const REDIS_SERVER = 'localhost';
+const REDIS_PORT = 6379;
+
+// RethinkDB server config
+const RETHINKDB_SERVER = 'localhost';
+const RETHINKDB_PORT = 28015;
+
+
+
+// HTTP server init
 const app = require('express')();
 const http = require('http').Server(app);
-const io = require('socket.io')(http);
-const mavlink = require('mavlink');
 
-const myMAV = new mavlink(1, 1, "v1.0",["common", "ardupilotmega"]);
+// Socket.io_server server init
+const io_server = require('socket.io')(http);
 
-
+// Redis server init
 const redis = require('redis');
-const redisClient = redis.createClient({host : 'localhost', port : 6379});
-
-const r = require('rethinkdb');
-
-let connection = null;
-r.connect( {host: 'localhost', port: 28015}, function(err, conn) {
-    if (err) throw err;
-    connection = conn;
-});
-
-
+const redisClient = redis.createClient({ host: REDIS_SERVER, port: REDIS_PORT });
 redisClient.on('ready',function() {
- console.log("Redis is ready");
+    console.log("Redis is ready");
 });
-
 redisClient.on('error',function() {
- console.log("Error in Redis");
+    console.log("Error in Redis");
 });
 
-/*
-## SET STRING
-
-redisClient.set("language","nodejs")
-
-redisClient.set("language","nodejs",function(err,reply) {
- console.log(err);
- console.log(reply);
+// Rethink DB init
+const rethinkdb = require('rethinkdb');
+let rethinkdb_connection = null;
+rethinkdb.connect( {host: RETHINKDB_SERVER, port: RETHINKDB_PORT}, function(err, conn) {
+    if (err) throw err;
+    rethinkdb_connection = conn;
 });
 
+// Node-mavlink init
+const mavlink = require('mavlink');
+const myMAV = new mavlink(BOARD_SYS_ID, BOARD_COMP_ID, MAVLINK_VERSION, MAVLINK_MSG_DEF);
 
-## GET STRING
-redisClient.get("language",function(err,reply) {
- console.log(err);
- console.log(reply);
-});
-
-## HASH
-redisClient.hmset("tools","webserver","expressjs","database","mongoDB","devops","jenkins",function(er$
- console.log(err);
- console.log(reply);
-});
-
-redisClient.hgetall("tools",function(err,reply) {
- console.log(err);
- console.log(reply);
-});
+// Counting messages
+let mavlink_msg_counter = 0;
+let video_frames_counter = 0;
 
 
-## LIST AND SET
-redisClient.rpush(["languages","angularjs","nodejs","go"],function(err,reply) {
- console.log(err);
- console.log(reply);
-});
-
-redisClient.sadd(["devopstools","jenkins","codeship","jenkins"],function(err,reply) {
- console.log(err);
- console.log(reply);
-});
-
-
-redisClient.exists('language',function(err,reply) {
- if(!err) {
-  if(reply === 1) {
-   console.log("Key exists");
-  } else {
-   console.log("Does't exists");
-  }
- }
-});
-
-
-redisClient.del('redisClient',function(err,reply) {
- if(!err) {
-  if(reply === 1) {
-   console.log("Key is deleted");
-  } else {
-   console.log("Does't exists");
-  }
- }
-});
-
-
-redisClient.expire('redisClient', 30); // Expirty time for 30 seconds.
-
-
- */
-
-
-
-app.get('/', function(req, res){
-    res.sendFile(__dirname + '/testui/index.html');
-});
-
-
-
+// After mavlink has parsed message definition XML files, it is ready to decode incoming messages
 myMAV.on("ready", function() {
     console.log('mavlink ready');
 
-    // Соединение с клиентом
-    io.on('connection', function(socket){
+    // On socket.io_server client connected (board or web)
+    io_server.on('connection', function(io_client){
         console.log('client connected');
 
-        let robot_id = socket.handshake.query.robot_id;
-        let web_id = socket.handshake.query.web_id;
+        // Get parameters from socket.io_server connection to find out who is it
+        let robot_id = io_client.handshake.query.robot_id;
+        let web_id = io_client.handshake.query.web_id;
 
+        // The handshake details:
+        /*
+
+        {
+            headers: // the headers sent as part of the handshake,
+            time: // the date of creation (as string),
+            address: // the ip of the client ,
+            xdomain: // whether the connection is cross-domain ,
+            secure: // whether the connection is secure ,
+            issued: // the date of creation (as unix timestamp) ,
+            url: // the request URL string ,
+            query: // the query object
+        }
+        */
+
+
+        //
+        // In case we have board connected
         if( robot_id ){
             console.log('robot ' + robot_id);
 
-            // TODO проверить регистрацию робота в БД
-            // если ее нет, то порвать соединение
+            // TODO
+            /*
+                Here we check if this robot id is in our database
+                If it's not, then we break connection and put it's IP to blacklist (time-limited)
 
-            // а если есть, то создаем канал с его телеметрией и пишем все данные туда
-            socket.join('robot_' + robot_id);
+                const client_ip = io_client.handshake.address
+                io_client.disconnect(true)
+             */
 
+            // Joining to socket.io room with robot id. It is used to communicate with web-client
+            io_client.join('robot_' + robot_id);
+
+            // Telemetry hash
+            // After mavlink message parsed the values are collected here.
+            // Then this hash is sent to web-client on some interval
             let telemetry = {
                 speed: -1
                 ,lon: 0
@@ -162,13 +147,28 @@ myMAV.on("ready", function() {
                 ,pos_hdg: 0
             };
 
-            //
-            // Принимаем расшифрованные сообщения и запоминаем
-            // Потом раз в секунду веб-клиенту отдаем скомпонованную телеметрию
+            // When we get incoming message from socket.io client
+            io_client.on('fromboard', function(msg){
+
+                // it is parsed by node-mavlink (mavlink issues 'message' event once it's ready
+                myMAV.parse(msg);
+
+                // count this message
+                mavlink_msg_counter++;
+
+            });
+
+            // After mavlink message is parsed, we can use its data to fill telemetry fields
             // https://mavlink.io/en/messages/common.html
             myMAV.on("message", function(message) {
-                //console.log(message.id + ' ' + message.checksum);
+                // 'message' event is for every message with raw data
+                // Fortunately node-mavlink has events for single messages (below)
+                //console.log(message.id);
             });
+
+
+            //
+            // Here we save data from mavlink messages to our telemetry hash
 
             // TODO 0 !!!
             myMAV.on("HEARTBEAT", function(message, fields) {
@@ -189,6 +189,16 @@ myMAV.on("ready", function() {
             myMAV.on("SYSTEM_TIME", function(message, fields) {
                 telemetry.time_u = fields.time_unix_usec;
                 telemetry.time_b = fields.time_boot_ms;
+            });
+
+            // 4
+            myMAV.on("PING", function(message, fields) {
+                console.log('PING ');
+            });
+
+            // TODO 22
+            myMAV.on("PARAM_VALUE", function(message, fields) {
+                //console.log('PARAM VALUE 22');
             });
 
             // 24
@@ -262,6 +272,11 @@ myMAV.on("ready", function() {
 
             });
 
+            // 44
+            myMAV.on("MISSION_COUNT", function(message, fields) {
+                console.log('44 MISSION COUNT');
+            });
+
             // TODO 62
             myMAV.on("NAV_CONTROLLER_OUTPUT", function(message, fields) {
 
@@ -292,56 +307,103 @@ myMAV.on("ready", function() {
 
             });
 
-            // пришло сообщение от робота
-            socket.on('fromboard', function(msg){
-                //console.log(msg);
-                // msg - пакет MAVLink как на GCS
-                myMAV.parse(msg);
-            });
+
+            // TODO отправить PING на борт и получить ответ, посчитать время
+            /*
 
             setInterval(function(){
-                telemetry.server_time = new Date().getTime();
-                io.to('robot_' + robot_id).emit('telem', {robot_id: robot_id, telemetry: telemetry});
-            }, 1000);
 
-            socket.on('image', function(image){
-               io.to('robot_' + robot_id).emit('image', image);
-               console.log('img emit');
+
+                myMAV.createMessage("MISSION_REQUEST_LIST",
+                    {
+                        'target_system': 1
+                        ,'target_component': 1
+                        ,'mission_type': 0
+                    },
+                    function(out_msg) {
+                        //console.log(out_msg);
+                        io_client.emit('fromserver', out_msg.buffer);
+                        console.log('ping sent ' + ping_seq);
+                        ping_seq++;
+                    }
+                );
+
+
+            }, 20000);
+            */
+
+
+            //
+            // Send telemetry hash to socket.io room with its robot id
+            setInterval(function(){
+                // update server time
+                telemetry.server_time = (new Date()).getTime();
+                // send message to room (web client uses this data to update realtime telemetry on screen
+                io_server.to('robot_' + robot_id).emit('telem', {robot_id: robot_id, telemetry: telemetry});
+            }, 500); // 500 msec = 2 times in a second
+
+
+            //
+            // Video transmition implemetation
+            io_client.on('video', function(frame){
+               io_server.to('robot_' + robot_id).emit('video_frame', frame);
+               video_frames_counter++;
             });
+
         }
-        // Web-клиент
+
+        //
+        // In case a web client connected
         else if( web_id ) {
             console.log('web');
-            // TODO проверяем регистрацию веб-клиента
+            // TODO
+            /*
+                web client gets its id after authorization
+                here we need to check if this id in our memory and client is authorized to connect
+                if not we need to break connection and blacklist IP address for some time
 
-            // выбираем список его роботов
-            r.table('robots').run(connection, function(err, cursor) {
+                const client_ip = io_client.handshake.address
+                io_client.disconnect(true)
+             */
+
+            // get all robots of our client
+            rethinkdb.table('robots').run(rethinkdb_connection, function(err, cursor) {
                 if (err) console.log(err);
                 if( !cursor ) return;
 
                 cursor.toArray(function(err, result) {
                     if (err) throw err;
 
+                    // and joining to their socket.io rooms
                     for( let i = 0; i < result.length; i++ ){
-                        // и подписываем на их каналы
-                        socket.join('robot_' + result[i].id);
+                        io_client.join('robot_' + result[i].id);
                     }
                 });
+
+                // now web client will receive messages from all its robots
             });
 
 
         }
 
 
-        // клиент отсоединился
-        socket.on('disconnect', function(){
+        // client disconnected
+        io_client.on('disconnect', function(){
             console.log('client disconnected');
         });
+
     });
 
 });
 
 
+// Logging counters to console
+setInterval(function(){
+    console.log(mavlink_msg_counter + ' mavlink msgs received on last 60sec');
+    console.log(video_frames_counter + ' video frames received on last 60sec');
+    mavlink_msg_counter = 0;
+    video_frames_counter = 0;
+}, 60000);
 
 
 http.listen(3000, function(){

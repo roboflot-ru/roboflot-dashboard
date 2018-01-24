@@ -1,0 +1,6 @@
+.idea/
+web-ui/codebase/
+web-ui/node_modules/
+node_modules/
+_dev/
+*.log

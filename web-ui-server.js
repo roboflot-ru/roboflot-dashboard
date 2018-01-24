@@ -1,24 +1,44 @@
 //
-//  Вебсервер для общения с панелью управления
 //
-const port_to_listen = 8081;
+//
+const port_to_listen = 8090;
 
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 const http = require('http').Server(app);
-const io = require('socket.io_server')(http);
+const io = require('socket.io')(http);
 
 const r = require('rethinkdb');
 
 
-app.use(express.static('web-ui'));
+//app.use(express.static('testui'));
+app.use(express.static(__dirname + '/web-ui'));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
 
 // TODO
+
+app.get('/api/login', function (req, res) {
+    console.log('get login');
+});
+
+app.post('/api/login', function (req, res) {
+    console.log('post login');
+
+    let response_data = null;
+
+    if( req.body.email == 'test' ){
+        response_data = {webid: '3241234123432', email: req.body.email};
+    }
+
+    res.json(response_data);
+
+});
+
+
 
 //
 // Получить название робота, сгенерировать id, записать в БД
@@ -33,7 +53,7 @@ app.post('/data/robots/', function (req, res) {
             {name: req.body.name}
         ]).run(connection, function (err, result) {
             if (err) throw err;
-            console.log(JSON.stringify(result, null, 2));
+            //console.log(JSON.stringify(result, null, 2));
 
             res.json({status: 'success', newid: result.generated_keys[0]});
         });

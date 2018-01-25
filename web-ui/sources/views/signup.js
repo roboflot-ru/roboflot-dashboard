@@ -13,15 +13,26 @@ export default class SignupView extends JetView{
 		const form = this.getRoot().queryView({ view:"form" });
 
 		if (form.validate()){
-			const data = form.getValues();
-			user.signup(data.login, data.pass).catch(function(){
-				webix.html.removeCss(form.$view, "invalid_login");
-				form.elements.pass.focus();
-				webix.delay(function(){
-					webix.html.addCss(form.$view, "invalid_login");
-				});
-			});
-		}
+		    form.disable();
+
+			const values = form.getValues();
+			const app_loc = this.app;
+
+            webix.ajax().post('/api/signup', {email: values.email, pass: values.pass1 }, function(t,d){
+                const resp = d.json();
+                if( 'success' == resp.status ){
+                    webix.message('Successfully signed up');
+                    app_loc.show('/login');
+                }
+                else {
+                    webix.message({type: 'error', text: resp.message});
+                }
+
+                form.enable();
+            });
+		} else {
+		    webix.message({type: 'error', text: 'Wrong data in fields'})
+        }
 	}
 }
 
@@ -30,26 +41,37 @@ const signup_form = {
 	width:400, borderless:false, margin:10,
 	rows:[
 		{ view:"text", name:"email", label:"Email", labelPosition:"top" },
-		{ view:"text", type:"password", name:"pass", label:"Password", labelPosition:"top" },
+		{ view:"text", type:"password", name:"pass1", label:"Password", labelPosition:"top" },
 		{ view:"text", type:"password", name:"pass2", label:"Confirm password", labelPosition:"top" },
-		{ view:"button", value:"Sign up", click:function(){
+		{ view:"button", value: "New user sign up", click: function(){
 			this.$scope.do_signup();
-		}, hotkey:"enter", css: 'button_primary button_raised' }
-		,{}
+		}, hotkey:"enter", type: 'form' }
+
+		,{height: 10}
+
 		,{
 	        cols: [
 	            { view:"button", value:"Sign in", click:function(){
                     this.$scope.app.show('/login');
-                }, css: 'button_primary' }
+                }, autowidth: true }
+                ,{gravity: 2}
                 ,{ view:"button", value:"Remind password", click:function(){
                     this.$scope.app.show('/remindpass');
-                }, css: 'button_primary' }
+                }, autowidth: true }
             ]
         }
 	],
 	rules:{
-		login:webix.rules.isNotEmpty,
-		pass:webix.rules.isNotEmpty
+		email:webix.rules.isEmail
+		,pass1:webix.rules.isNotEmpty
+        ,pass2:webix.rules.isNotEmpty
+        ,$obj:function(data){ // data = value
+            if (data.pass1 != data.pass2){
+                webix.message("Passwords are not the same");
+                return false;
+            }
+            return true;
+        }
 	}
 };
 

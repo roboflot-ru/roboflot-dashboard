@@ -7,7 +7,7 @@ export default class LoginView extends JetView{
             email: '',
             pass: '',
             rememberme: false
-        }, Cookies.getJSON("gcs"));
+        }, Cookies.getJSON("signin"));
 
         const authService = this.app.getService('auth');
 
@@ -21,8 +21,8 @@ export default class LoginView extends JetView{
                     view: 'checkbox',
                     name: "rememberme",
                     label: "Remember me",
-                    labelPosition: "right",
-                    labelWidth: 120,
+                    labelPosition: "left",
+                    labelWidth: 110,
                     checkValue: true,
                     uncheckValue: false,
                     value: values.rememberme
@@ -30,29 +30,27 @@ export default class LoginView extends JetView{
 
                 ,{ view:"button", value:"Sign in", click: function() {
                     this.$scope.do_login();
-                }, hotkey:"enter", css: 'button_primary button_raised' }
-                ,{}
+                }, hotkey:"enter", type: 'form' }
+
+                ,{height: 10}
+
                 ,{
                     cols: [
-                        { view:"button", value:"Sign up", click: function() {
+                        { view:"button", value:"New user sign up", click: function() {
                             console.log('signup pressed');
-                            //this.app.show('/signup'); //error
-                            // app.show('/signup'); // error
-                            this.$scope.show('/signup');
                             this.$scope.app.show('/signup');
-                            //this.$scope.signup();
-
-                        }, css: 'button_primary' }
+                        }, autowidth:true}
+                        ,{gravity: 2}
                         ,{ view:"button", value:"Remind password", click: function() {
                             console.log('pwrem pressed');
                             this.$scope.app.show('/remindpass');
-                        }, css: 'button_primary' }
+                        }, autowidth:true }
                     ]
                 }
             ],
             rules:{
-                email:webix.rules.isNotEmpty,
-                pass:webix.rules.isNotEmpty
+                email: webix.rules.isEmail,
+                pass: webix.rules.isNotEmpty
             }
         };
 
@@ -77,10 +75,9 @@ export default class LoginView extends JetView{
 			const values = form.getValues();
 
             if (true === values.rememberme) {
-                Cookies.set("gcs", values);
+                Cookies.set("signin", values);
             } else {
-                // Clear cookie
-                Cookies.remove("gcs");
+                Cookies.remove("signin");
             }
 
             form.disable();
@@ -88,7 +85,7 @@ export default class LoginView extends JetView{
             authService.login(values.email, values.pass).catch(e => {
                 webix.message({
                     type: "error",
-                    text: "User/password combination not recognized"
+                    text: "Wrong email or password"
                 });
 
                 //form.hideProgress();
@@ -122,17 +119,7 @@ export default class LoginView extends JetView{
 		 */
 	}
 
-	signup(){
-	    console.log('signup pressed');
-        window.testapp.show('/signup');
-        //app.show('/signup'); // error
-        //this.$scope.show('/signup'); // error
-        //this.$scope.app.show('/signup'); // error
-    }
 }
-
-
-
 
 
 

@@ -4,20 +4,11 @@ export default class RemindPassView extends JetView{
 	config(){
 		return ui;
 	}
+
 	init(view){
 		view.$view.querySelector("input").focus();
 
 	}
-
-	login(){
-	    console.log('signin pressed');
-        this.app.show('/login');
-    }
-
-	signup(){
-	    console.log('signup pressed');
-        this.app.show('/signup');
-    }
 
     remindpass(){
 	    console.log('make password remind');
@@ -28,25 +19,28 @@ const remind_form = {
 	view:"form",
 	width:400, borderless:false, margin:10,
 	rows:[
-		{ view:"text", name:"email", label:"Email", labelPosition:"top" },
+		{ view:"text", name:"email", label:"Enter your email to remind password", labelPosition:"top" },
 		{ view:"button", value:"Remind password", click:function(){
 			this.$scope.remindpass();
-		}, hotkey:"enter", css: 'button_primary button_raised' }
-		,{}
+		}, hotkey: "enter", type: 'form' }
+
+		,{ height: 10 }
+
 		,{
 	        cols: [
-	            { view:"button", value:"Sign in", click:function(){
-	                this.$scope.login();
-                }, css: 'button_primary' }
-                ,{ view:"button", value:"Sign up", click: () => {
-	                this.$scope.signup();
-                }, css: 'button_primary' }
+	            { view:"button", value:"New user sign up", click: function() {
+                    console.log('signup pressed');
+                    this.$scope.app.show('/signup');
+                }, autowidth:true}
+                ,{gravity: 2}
+                ,{ view:"button", value:"Sign in", click:function(){
+	                this.$scope.app.show('/login');
+                }, autowidth: true }
             ]
         }
 	],
 	rules:{
-		login:webix.rules.isNotEmpty,
-		pass:webix.rules.isNotEmpty
+		email: webix.rules.isEmail
 	}
 };
 

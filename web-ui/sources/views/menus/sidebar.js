@@ -1,13 +1,13 @@
 import {JetView, plugins} from "webix-jet";
 
 const menu_data = [
-    {id: "dashboard", icon: "dashboard", value: "Dashboard"}
+     {id: "dashboard", icon: "dashboard", value: "Dashboard"}
     ,{id: "missions", icon: "globe", value:"Missions"}
     ,{id: "flightlogs", icon: "file-text-o", value:"Flight logs"}
     ,{id: "reports", icon: "line-chart", value:"Reports"}
     ,{id: "tools", icon: "wrench", value:"Tools"}
     ,{id: "docs", icon: "book", value:"Documentation"}
-    ,{ id: "logout", value: "Logout", icon: "sign-out"}
+    ,{id: "logout", value: "Logout", icon: "sign-out"}
     // Multi level menu
     /*
     {id: "forms", icon: "pencil-square-o", value:"Forms",  data:[
@@ -30,6 +30,7 @@ export default class SidebarView extends JetView{
 		    id: "sidebar1"
 			//,width: 200
 			,view: "sidebar"
+			,collapsed: true
 			//,type: "menuTree2"
             //,css: "menu"
 			//,activeTitle: true

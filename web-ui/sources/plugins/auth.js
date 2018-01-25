@@ -1,3 +1,5 @@
+import * as Cookies from "js-cookie";
+
 export function auth(app, view, config) {
 
     const authModel   = config.model;
@@ -7,7 +9,7 @@ export function auth(app, view, config) {
     const afterLogout = config.afterLogout || "/login";
     const ping        = config.ping || 5 * 60 * 1000;
 
-    let credentials = null;
+    let credentials = Cookies.getJSON("user") || null;
 
     const service = {
 
@@ -17,10 +19,12 @@ export function auth(app, view, config) {
 
         getStatus(server) {
             if (!server) {
+
                 return credentials !== null;
+
             }
 
-            return authModel.status().catch(() => null).then(data => {
+            return authModel.status_server().catch(() => null).then(data => {
                 credentials = data;
             });
 
@@ -30,6 +34,8 @@ export function auth(app, view, config) {
             return authModel.login(name, pass).then((data) => {
 
                 credentials = data;
+
+                console.log(data);
 
                 if (!data) {
                     throw ("Access denied");
@@ -47,13 +53,14 @@ export function auth(app, view, config) {
     };
 
     function canNavigate(url, obj) {
-        console.log(url);
+        console.log('nav:' + url);
 
         if (url === logout) {
             service.logout();
             obj.redirect = afterLogout;
             app.show(afterLogout);
         } else if (url !== '/signup' && url !== '/remindpass' && url !== login && !service.getStatus()) {
+            console.log('redir to login');
             obj.redirect = login;
             app.show(login);
         }
@@ -62,11 +69,15 @@ export function auth(app, view, config) {
     app.setService("auth", service);
 
     app.attachEvent(`app:guard`, function (url, _$root, obj) {
+        console.log('app:guard ' + url);
+
         if (credentials === null) {
             obj.confirm = service.getStatus(true).then(any => {
+                console.log('app:guard nav after server status to ' + url);
                 canNavigate(url, obj);
             });
         } else {
+            console.log('app:guard nav to ' + url);
             canNavigate(url, obj);
         }
     });
@@ -75,5 +86,7 @@ export function auth(app, view, config) {
         setInterval(() => service.getStatus(true), ping);
     }
 
+    console.log('start nav');
     canNavigate(app.$router.get(), {});
+
 }

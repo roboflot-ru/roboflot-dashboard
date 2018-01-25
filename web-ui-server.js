@@ -1,45 +1,170 @@
 //
 //
 //
-const port_to_listen = 8090;
+const config = require('./config');
 
 const express = require('express');
+const session = require('express-session');
+const RedisStore = require('connect-redis')(session);
 const bodyParser = require('body-parser');
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
-const r = require('rethinkdb');
+const scrypt = require("scrypt");
+const scryptParameters = scrypt.paramsSync(0.1);
 
+const crypto = require('crypto');
 
-//app.use(express.static('testui'));
+/*
+//const thinky = require('thinky')(); // {db: 'test'}
+//const r = thinky.r; // r: An instance of rethinkdbdash
+//const tErrors = thinky.Errors;
+//const r = require('rethinkdb');
+ */
+
+// Redis session init
+app.use(session({
+    store: new RedisStore({host: config.redis_host, port: config.redis_port})
+    ,name: 'sid'
+    ,secret: config.session_secret
+    //,cookie: {} // default { path: '/', httpOnly: true, secure: false, maxAge: null } (domain, expires, httpOnly, maxAge, path, secure, sameSite)
+    ,resave: false
+    ,saveUninitialized: false
+    ,genid: function(req) {
+        return crypto.randomBytes(48).toString('hex');
+    }
+}));
+
+// static files init
 app.use(express.static(__dirname + '/web-ui'));
 
+// JSON parse init
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
+// User model
+const User = require('./models/user.js');
 
-// TODO
+//
+// Signup
+app.post('/api/signup', function (req, res) {
 
-app.get('/api/login', function (req, res) {
-    console.log('get login');
+    // check if email already exists
+    User.filter({email: req.body.email}).run().then(function(result) {
+        // exists
+        if( result.length ){
+
+            res.json({status: 'error', message: 'This email already registered. Please try password reminder.'});
+
+        }
+
+        // not exists
+        else {
+            try {
+                // hash user's password to save to DB
+                const hashed_pass = scrypt.kdfSync(req.body.pass, scryptParameters); //should be wrapped in try catch
+
+                // Create a new user
+                const user = new User({
+                    email: req.body.email
+                    ,hashed_pass: hashed_pass
+                });
+
+                user.save().then(function(doc) {
+
+                    console.log('user registered ' + doc.id);
+
+                    res.json({status: 'success', message: ''});
+
+                }).error(console.log);
+
+                //console.log(hashed_pass);
+
+            }
+            catch (e){
+                console.log('scrypt error');
+                console.log(e);
+                res.json({status: 'error', message: 'Unknown error'});
+            }
+        }
+    });
+
 });
 
+
+// sign in
 app.post('/api/login', function (req, res) {
-    console.log('post login');
+    console.log('post login ' + req.session.id);
 
-    let response_data = null;
+    User.filter({email: req.body.email}).run().then(function(result) {
+        // user does not exists
+        if( !result.length ){
 
-    if( req.body.email == 'test' ){
-        response_data = {webid: '3241234123432', email: req.body.email};
+            res.json(null);
+
+        }
+
+        // check password else
+        else {
+            if( scrypt.verifyKdfSync(result[0].hashed_pass, req.body.pass) ){
+
+                // TODO save user data to session and redis
+
+                req.session.login = true;
+                req.session.userid = result[0].id;
+                req.session.name = result[0].name;
+                req.session.email = req.body.email;
+                req.session.gcsid = crypto.randomBytes(16).toString('hex');
+
+                // return data what client user.getUser() will have
+                res.json({
+                    email: req.session.email
+                    ,name: req.session.name
+                    ,gcsid: req.session.gcsid
+                });
+            }
+            else {
+                res.json(null);
+            }
+        }
+    });
+
+});
+
+
+// check status
+app.get('/api/login', function (req, res) {
+    if( req.session.login ){
+        res.json({
+            email: req.session.email
+            ,name: req.session.name
+            ,gcsid: req.session.gcsid
+        });
+    }
+    else {
+        res.json(null);
     }
 
-    res.json(response_data);
-
 });
 
 
+// log OUT
+app.post('/api/logout', function (req, res){
+    req.session.destroy();
 
+    console.log('session destroyed');
+
+    res.json(null);
+
+});
+
+// TODO remind password
+
+
+
+
+/*
 //
 // Получить название робота, сгенерировать id, записать в БД
 app.post('/data/robots/', function (req, res) {
@@ -84,78 +209,6 @@ app.get('/data/robots/', function (req, res) {
 });
 
 
-/*
-
-https://rethinkdb.com/docs/guide/javascript/
-
-
-rethinkdb.table('authors').run(connection, function(err, cursor) {
-    if (err) throw err;
-    cursor.toArray(function(err, result) {
-        if (err) throw err;
-        console.log(JSON.stringify(result, null, 2));
-    });
-});
-
-rethinkdb.table('authors').filter(rethinkdb.row('name').eq("William Adama")).
-    run(connection, function(err, cursor) {
-        if (err) throw err;
-        cursor.toArray(function(err, result) {
-            if (err) throw err;
-            console.log(JSON.stringify(result, null, 2));
-        });
-    });
-
-rethinkdb.table('authors').get('7644aaf2-9928-4231-aa68-4e65e31bf219').
-    run(connection, function(err, result) {
-        if (err) throw err;
-        console.log(JSON.stringify(result, null, 2));
-    });
-
-
- */
-
-// Web-клиент подписывается на телеметрию робота и показывает ее
-
-/*
-// Соединение с клиентом
-io_server.on('connection', function(socket){
-    console.log('a user connected');
-
-    // приветсвенное сообщение
-    socket.emit('hello', 'hello from server');
-
-    // клиент отсоединился
-    socket.on('disconnect', function(){
-        console.log('user disconnected');
-    });
-
-    // пришло сообщение
-    socket.on('hello', function(msg){
-        console.log(msg);
-    });
-
-    socket.join('some_room');
-
-    io_server.to('some_room').emit('some event');
-
-    /*
-    io_server.on('connection', function(socket){
-      socket.on('say to someone', function(id, msg){
-        socket.broadcast.to(id).emit('my message', msg);
-      });
-    });
-     *
-
-});
-*/
-
-
-let connection = null;
-r.connect( {host: 'localhost', port: 28015}, function(err, conn) {
-    if (err) throw err;
-    connection = conn;
-});
 
 
 app.get('/data/table_sales', function (req, res) {
@@ -195,11 +248,15 @@ app.put('/data/table_menu/:menuId', function (req, res) {
 
 });
 
+*/
+
+
+
 
 // V. 1
 // Запуск сервера
-const http_server = app.listen(port_to_listen, () => {
-    console.log('Listening on port ' + port_to_listen);
+const http_server = app.listen(config.web_ui_server_port, () => {
+    console.log('Listening on port ' + config.web_ui_server_port);
 });
 
 

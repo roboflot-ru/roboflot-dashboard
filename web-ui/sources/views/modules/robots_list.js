@@ -1,4 +1,22 @@
-export default {
+import {JetView} from "webix-jet";
+import controllers from './../../controllers/robots_list';
+
+
+export default class RobotsListView extends JetView{
+    config(){
+        return view_config;
+    }
+
+    init(view){
+        controllers.init(view);
+    }
+
+    //ready(){}
+
+}
+
+
+const view_config = {
     id: 'robots_list_view'
     ,rows: [
 
@@ -9,6 +27,7 @@ export default {
             ,template: '#name#' // '<div class="list_mark">#online#</div> #name#'
             ,scheme:{
                 $change:function(obj){
+                    /*
                     if( 'online' == obj.status ){
                         obj.$css = 'list_bg_green';
                     }
@@ -18,6 +37,7 @@ export default {
                     else{
                         obj.$css = 'list_bg_red';
                     }
+                    */
                 }
             }
             ,type:{
@@ -30,9 +50,8 @@ export default {
         ,{
             view: 'toolbar'
             ,elements: [
-                {gravity: 4}
                 // + button to add new robot
-                ,{view:'icon', id: 'add_robot', icon: 'plus', css: 'action_icon', tooltip: 'Add new'}
+                {view:'button', id: 'add_robot', type: 'iconButton', icon: 'plus', label: 'New', tooltip: 'Create new robot', autowidth: true}
             ]
         }
 

@@ -15,15 +15,6 @@ export default class AppView extends JetView {
 	}
 }
 
-const body = {
-	rows:[
-		//{ height: 49, id: "title", css: "title", template: "<div class='header'>#title#</div><div class='details'>( #details# )</div>", data: {text: "",title: ""}},
-		{
-			//view: "scrollview", scroll:"native-y",
-			body:{ cols:[{ $subview:true}] }
-		}
-	]
-};
 
 const layout = {
     rows:[
@@ -31,7 +22,15 @@ const layout = {
 		{
 			cols:[
 				sidebar
-                ,body
+                ,{
+					rows:[
+						//{ height: 49, id: "title", css: "title", template: "<div class='header'>#title#</div><div class='details'>( #details# )</div>", data: {text: "",title: ""}},
+						{
+							//view: "scrollview", scroll:"native-y",
+							body: { $subview: true }
+						}
+					]
+				}
 			]
 		}
 	]

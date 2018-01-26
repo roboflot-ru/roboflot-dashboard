@@ -3,19 +3,21 @@ const type = thinky.type;
 const r = thinky.r;
 
 
-const User = thinky.createModel("User", {
-    id: type.string(),
-    name: type.string().min(2).max(50),
-    email: type.string().email().min(2).max(60).required(),
-    hashed_pass: type.buffer().required(),
-    createdAt: type.date().default(r.now())
+
+const Robot = thinky.createModel("Robots", {
+    id: type.string()
+    ,name: type.string().min(2).max(50).required()
+    ,color: type.string().length(6).alphanum()
+    ,bat_v: type.number()
+    ,user_id: type.string()
+    ,createdAt: type.date().default(r.now())
     //age: type.number()
 });
 
-module.exports = User;
+module.exports = Robot;
 
-const Robot = require('./robot');
-User.hasMany(Robot, "robots", "id", "user_id");
+const User = require('./user');
+Robot.belongsTo(User, "user", "user_id", "id");
 
 
 //var Account = require(__dirname+'/models/account.js');

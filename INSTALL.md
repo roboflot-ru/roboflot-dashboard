@@ -21,6 +21,17 @@ https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-di
 https://www.digitalocean.com/community/tutorials/how-to-install-and-use-redis
 
 
+## Downloading source files
+
+    git clone
+    cd dashboard
+
+
+## Installing dependencies
+
+    npm install
+
+
 
 # Starting
 
@@ -31,6 +42,16 @@ https://www.digitalocean.com/community/tutorials/how-to-install-and-use-redis
     node start
 
 
+# Deploying
+
+    npm run build
+
+
+# Testing
+
+To check the quality of the source code, run the following command:
+
+    npm run lint
 
 
 
@@ -84,4 +105,9 @@ https://github.com/webix-hub/material-design-skin
 Webix sidebar
 http://webix-hub.github.io/components/sidebar/sample.html
 
+Google Maps Javascript API
+https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=ru#Map
+
+G Maps Examples
+https://developers.google.com/maps/documentation/javascript/examples/user-editable-shapes?hl=ru
 

@@ -43,6 +43,8 @@ app.use(express.static(__dirname + '/web-ui'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
+
+//
 // User model
 const User = require('./models/user.js');
 
@@ -162,6 +164,74 @@ app.post('/api/logout', function (req, res){
 // TODO remind password
 
 
+//
+// User model
+const Robot = require('./models/robot.js');
+
+//
+// Creating new robot
+app.post('/api/robots/', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    console.log('saving new robot ' + req.session.id);
+
+    if( req.body.name ){
+        // Create new robot
+        const new_robot = new Robot({
+            name: req.body.name
+            ,color: req.body.color.replace('#','') || 'ffffff'
+            ,batt_v: req.body.batt_v || 11.1
+            ,user_id: req.session.userid
+        });
+
+        try{
+            new_robot.validate();
+
+            new_robot.save().then(function(doc) {
+
+                console.log('robot registered ' + doc.id);
+
+                res.json({status: 'success', robot_id: doc.id});
+
+            }).error( e => {
+                console.log(e);
+
+                res.json({status: 'error', message: 'DB error'});
+            });
+        }
+        catch(err) {
+            console.log("robot is not valid");
+            console.log(err);
+            console.log(req.body);
+            res.json({status: 'error', message: 'Check fields'});
+        }
+
+
+    } else {
+        res.json({status: 'error', message: 'Check fields'});
+    }
+
+});
+
+
+app.get('/api/tests', function (req, res) {
+    console.log('test  ' + req.session.id);
+
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    Robot.run().then(function(result) {
+        res.json({status: 'test', data: result});
+    });
+
+    //res.json({status: 'error', message: 'ERROR 1'});
+
+});
 
 
 /*

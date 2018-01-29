@@ -1,6 +1,6 @@
 /*
 @license
-webix UI v.5.1.6
+webix UI v.5.1.7
 This software is covered by Webix Trial License.
 Usage without proper license is prohibited.
 (c) XB Software Ltd.
@@ -57,7 +57,7 @@ body.webix_full_screen{margin:0;padding:0;overflow:hidden}
 .webix_spacer{background:0 0}
 .webix_view_animate{position:relative;width:100%;height:100%}
 x\:ui{display:none}
-.webix_flexlayout{display:flex!important;flex-wrap:wrap;flex-direction:row;overflow:hidden;box-sizing:border-box}
+.webix_view.webix_flexlayout{display:flex!important;flex-wrap:wrap;flex-direction:row;overflow:hidden;box-sizing:border-box}
 .webix_flexlayout>div{display:block!important}
 .webix_view_align{background:0 0}
 .webix_view a.webix_list_item,.webix_view div,.webix_view span{outline:0}
@@ -65,17 +65,17 @@ x\:ui{display:none}
 .webix_view div.webix_inp_static:focus,button,input,select,textarea{outline:0}
 .webix_resize_area{position:absolute;top:0;left:0;width:100%;height:100%}
 .webix_resize_handle_x .webix_handle_content,.webix_resize_handle_y .webix_handle_content{width:100%;height:100%;background:rgba(100,100,100,.1);border:1px dotted #ebebeb}
-.webix_resize_handle_x{-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box;cursor:e-resize;width:1px;height:100%;position:absolute;z-index:2;top:0}
+.webix_resize_handle_x{-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box;cursor:ew-resize;width:1px;height:100%;position:absolute;z-index:2;top:0}
 .webix_resize_handle_x .webix_handle_content{border-width:0 1px}
-.webix_resize_origin_x{cursor:e-resize;width:3px;height:100%;position:absolute;z-index:2;top:0}
-.webix_resize_handle_y{cursor:n-resize;height:1px;width:100%;position:absolute;z-index:2;left:0}
+.webix_resize_origin_x{cursor:ew-resize;width:3px;height:100%;position:absolute;z-index:2;top:0}
+.webix_resize_handle_y{cursor:ns-resize;height:1px;width:100%;position:absolute;z-index:2;left:0}
 .webix_resize_handle_y .webix_handle_content{border-width:1px 0}
-.webix_resize_origin_y{cursor:n-resize;height:3px;width:100%;position:absolute;z-index:2;left:0}
+.webix_resize_origin_y{cursor:ns-resize;height:3px;width:100%;position:absolute;z-index:2;left:0}
 .webix_resizer.webix_disabled_view{cursor:default}
-.webix_resizer_vy{cursor:n-resize;margin-top:0!important;border:0!important;padding:0!important;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAADAQMAAABCowZuAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jXMUABoxAGgAJaAFXPIkJqAAAAABJRU5ErkJggg==) no-repeat center center}
-.webix_resizer_vx{cursor:e-resize;margin-left:0!important;border:0!important;padding:0!important;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAXAQMAAAD0oWdxAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA5JREFUeF5jWMDAQDwGAKyuB4FpGQdzAAAAAElFTkSuQmCC) no-repeat center center}
-.webix_resizer_y{cursor:n-resize;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAADAQMAAABCowZuAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jXMUABoxAGgAJaAFXPIkJqAAAAABJRU5ErkJggg==) no-repeat center center;background-color:#fff}
-.webix_resizer_x{cursor:e-resize;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAXAQMAAAD0oWdxAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA5JREFUeF5jWMDAQDwGAKyuB4FpGQdzAAAAAElFTkSuQmCC) no-repeat center center;background-color:#fff}
+.webix_resizer_vy{cursor:ns-resize;margin-top:0!important;border:0!important;padding:0!important;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAADAQMAAABCowZuAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jXMUABoxAGgAJaAFXPIkJqAAAAABJRU5ErkJggg==) no-repeat center center}
+.webix_resizer_vx{cursor:ew-resize;margin-left:0!important;border:0!important;padding:0!important;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAXAQMAAAD0oWdxAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA5JREFUeF5jWMDAQDwGAKyuB4FpGQdzAAAAAElFTkSuQmCC) no-repeat center center}
+.webix_resizer_y{cursor:ns-resize;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAADAQMAAABCowZuAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jXMUABoxAGgAJaAFXPIkJqAAAAABJRU5ErkJggg==) no-repeat center center;background-color:#fff}
+.webix_resizer_x{cursor:ew-resize;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAXAQMAAAD0oWdxAAAABlBMVEUAAACkvtSA7tmIAAAAAXRSTlMAQObYZgAAAA5JREFUeF5jWMDAQDwGAKyuB4FpGQdzAAAAAElFTkSuQmCC) no-repeat center center;background-color:#fff}
 .webix_accordionitem_body{position:relative}
 .webix_accordionitem_header{border-bottom:1px solid #ddd;position:relative;z-index:2;color:#fff;font-size:18px;background:#3498db;line-height:43px;cursor:pointer;overflow:hidden}
 .webix_accordionitem_header .webix_el_button,.webix_accordionitem_header .webix_el_label,.webix_accordionitem_header .webix_inp_label{color:#fff}
@@ -1478,7 +1478,7 @@ label.webix_required:after{padding-left:4px;content:"*";color:red}
 .webixtype_base .webix_badge{top:50%;margin-top:-11px;margin-right:8px}
 .webix_treemap{background-color:#f5f5f5}
 .webix_treemap .webix_scroll_cont{position:relative;height:100%;width:100%}
-.webix_treemap_item{position:absolute;color:#444;overflow:hidden;text-align:left;-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box;padding:3px 5px;border-width:0 1px 1px 0;border-style:solid;border-color:rgba(0,0,0,.2);background:0 0}
+.webix_treemap_item{position:absolute;color:#444;overflow:hidden;text-align:left;-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box;padding:3px 5px;border-width:0 1px 1px 0;border-style:solid;border-color:rgba(0,0,0,.2);background:0 0;cursor:pointer}
 .webix_treemap_level_top{z-index:1;border-color:rgba(0,0,0,.4)}
 .webix_treemap_item_bottom{border-bottom-width:0}
 .webix_treemap_item_right{border-right-width:0}
@@ -1499,7 +1499,7 @@ label.webix_required:after{padding-left:4px;content:"*";color:red}
 .portlet_markerbottom{height:50%;top:50%}
 .portlet_markerleft{width:50%}
 .portlet_markerright{width:50%;left:50%}
-.panel_icon{position:absolute;z-index:1;top:5px;right:5px;width:18px;opacity:.5;cursor:pointer}
+.panel_icon{position:absolute;z-index:1;top:5px;right:5px;line-height:normal;font-size:13px;width:18px;opacity:.5;cursor:pointer}
 .panel_target{position:absolute;background:rgba(120,120,120,.84);box-shadow:0 0 10px 5px #666;z-index:3}
 .webix_popup.webix_sidemenu.webix_sidemenu_left{border-width:0 1px 0 0;box-shadow:2px 0 2px rgba(0,0,0,.05)}
 .webix_sidemenu_left.webix_animate{transition:left .6s}

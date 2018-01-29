@@ -9,7 +9,9 @@ export function auth(app, view, config) {
     const afterLogout = config.afterLogout || "/login";
     const ping        = config.ping || 5 * 60 * 1000;
 
-    let credentials = Cookies.getJSON("user") || null;
+    let credentials = authModel.status_local();
+
+    authModel.io_connect(app);
 
     const service = {
 
@@ -42,6 +44,7 @@ export function auth(app, view, config) {
                 }
 
                 app.show(afterLogin);
+                authModel.io_connect(app);
             });
         },
 
@@ -49,6 +52,10 @@ export function auth(app, view, config) {
             credentials = null;
             authModel.logout();
             app.show(afterLogout);
+        },
+
+        io_connect(){
+            return authModel.io_connect(app);
         }
     };
 
@@ -85,6 +92,7 @@ export function auth(app, view, config) {
     if (ping) {
         setInterval(() => service.getStatus(true), ping);
     }
+
 
     console.log('start nav');
     canNavigate(app.$router.get(), {});

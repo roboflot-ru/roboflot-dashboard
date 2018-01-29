@@ -8,12 +8,18 @@ export default class RobotNewFormView extends JetView{
     }
 
     init(view, url){
+
+    }
+
+    ready(view, url){
         controllers.init(view);
     }
 
-    //ready(view, url){}
-    //urlChange(view, url){}
-    //destroy(){}
+    urlChange(view, url){}
+
+    destroy(){
+        controllers.destroy(this);
+    }
 }
 
 

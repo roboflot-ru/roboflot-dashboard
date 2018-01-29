@@ -7,11 +7,17 @@ export default class RobotsListView extends JetView{
         return view_config;
     }
 
-    init(view){
-        controllers.init(view);
+    init(view){}
+
+    ready(view){
+        controllers.ready(view);
     }
 
-    //ready(){}
+    urlChange(view, url) {}
+
+    destroy(){
+        controllers.destroy(this);
+    }
 
 }
 
@@ -44,6 +50,12 @@ const view_config = {
                 height:50
             }
             ,select:true
+            //,ready:function(){
+            //    if (!this.count()){
+            //        webix.extend(this, webix.OverlayBox);
+            //       this.showOverlay("<div style='margin:75px; font-size:20px;'>There is no data</div>");
+            //    }
+            //}
         }
 
         // bottom toolbar
@@ -51,7 +63,7 @@ const view_config = {
             view: 'toolbar'
             ,elements: [
                 // + button to add new robot
-                {view:'button', id: 'add_robot', type: 'iconButton', icon: 'plus', label: 'New', tooltip: 'Create new robot', autowidth: true}
+                {view:'button', localId: 'button:add', type: 'iconButton', icon: 'plus', label: 'New', tooltip: 'Create new robot', autowidth: true}
             ]
         }
 

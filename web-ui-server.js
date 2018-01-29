@@ -23,6 +23,16 @@ const crypto = require('crypto');
 //const r = require('rethinkdb');
  */
 
+// Redis client init
+const redis = require('redis');
+const redisClient = redis.createClient({ host: config.redis_host, port: config.redis_port });
+redisClient.on('ready',function() {
+    console.log("Redis is ready");
+});
+redisClient.on('error',function() {
+    console.log("Error in Redis");
+});
+
 // Redis session init
 app.use(session({
     store: new RedisStore({host: config.redis_host, port: config.redis_port})
@@ -111,13 +121,16 @@ app.post('/api/login', function (req, res) {
         else {
             if( scrypt.verifyKdfSync(result[0].hashed_pass, req.body.pass) ){
 
-                // TODO save user data to session and redis
-
+                // save user data to session
                 req.session.login = true;
                 req.session.userid = result[0].id;
                 req.session.name = result[0].name;
                 req.session.email = req.body.email;
                 req.session.gcsid = crypto.randomBytes(16).toString('hex');
+
+                // save gcsid to redis to make socket.io communication robot <=> client
+                // TODO ограничить время, чтобы постоянно не висело в памяти и придумать процесс смены gcsid
+                redisClient.set('gcs_id_' + req.session.gcsid, req.session.userid);
 
                 // return data what client user.getUser() will have
                 res.json({
@@ -125,6 +138,7 @@ app.post('/api/login', function (req, res) {
                     ,name: req.session.name
                     ,gcsid: req.session.gcsid
                 });
+
             }
             else {
                 res.json(null);
@@ -153,6 +167,8 @@ app.get('/api/login', function (req, res) {
 
 // log OUT
 app.post('/api/logout', function (req, res){
+    redisClient.del('gcs_id_' + req.session.gcsid);
+
     req.session.destroy();
 
     console.log('session destroyed');
@@ -165,7 +181,7 @@ app.post('/api/logout', function (req, res){
 
 
 //
-// User model
+// Robot model
 const Robot = require('./models/robot.js');
 
 //
@@ -194,7 +210,7 @@ app.post('/api/robots/', function (req, res) {
 
                 console.log('robot registered ' + doc.id);
 
-                res.json({status: 'success', robot_id: doc.id});
+                res.json({status: 'success', data: doc});
 
             }).error( e => {
                 console.log(e);
@@ -216,7 +232,24 @@ app.post('/api/robots/', function (req, res) {
 
 });
 
+//
+// Robots list
+app.get('/api/robots/', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
 
+    Robot.filter({user_id: req.session.userid}).run().then(function(result) {
+        res.json(result);
+    });
+});
+
+
+
+
+//
+// Tests
 app.get('/api/tests', function (req, res) {
     console.log('test  ' + req.session.id);
 
@@ -226,7 +259,7 @@ app.get('/api/tests', function (req, res) {
     }
 
     Robot.run().then(function(result) {
-        res.json({status: 'test', data: result});
+        res.json(result);
     });
 
     //res.json({status: 'error', message: 'ERROR 1'});

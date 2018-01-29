@@ -5,20 +5,14 @@
  */
 
 import "./styles/app.css";
+import config from './config';
+
 import {JetApp, plugins} from "webix-jet";
 import {authModel} from "models/authModel";
 import {auth} from "plugins/auth";
 
 import io from 'socket.io-client';
 
-const socketio = io('http://localhost:3000?web_id=11');
-
-socketio.on('connect', function(){
-    console.log('socket connected');
-});
-socketio.on('disconnect', function(){
-    console.log('socket disconnected');
-});
 
 //
 // On webix loaded and ready
@@ -29,21 +23,30 @@ webix.ready(() => {
 	//
 	// new app constructor
 	const app = new JetApp({
-		start: '/app/dashboard'
+		start: '/app/dashboard/list'
+        ,io_server: config.io_server
+        ,google_maps_api_key: config.google_maps_api_key
         //,routerPrefix: ''
         ,debug: true
-        //,views: {
-        //    "start" : "area.list" // load /views/area/list.js
-        //}
-        //routes: {
-        //    "/hi"     : "/top/about",
-        //    "/form" : "/top/area.left.form",
-        //    "/list" : "/top/area.list",
-        //}
+        ,views: {
+            "new_robot" : "modules.robot_form_new" // load /views/area/list.js
+            ,'list': 'modules.robots_list'
+            ,'robot': 'modules.robot_dashboard'
+        }
+        ,routes: {
+		    //'/app/dashboard': '/app/dashboard/list'
+            //"/app/dashboard/robot": "/app/dashboard/modules.robot_dashboard"
+            //"/form" : "/top/area.left.form",
+            //"/list" : "/top/area.list",
+        }
 	});
+
+	app.io = io;
+    window.jetapp = app;
 
 	//
 	// Handle window resizing
+    /*
 	const size =  () => document.body.offsetWidth > 800 ? "wide" : "small";
     app.config.size = size();
     webix.event(window, "resize", function(){
@@ -55,6 +58,7 @@ webix.ready(() => {
             app.refresh();
         }
     });
+    */
 
     //
     // Render app
@@ -63,6 +67,11 @@ webix.ready(() => {
     //
     // Setting auth plugin
     app.use(auth, {model: new authModel()});
+
+
+
+
+    //app.getService('auth').io_connect();
 
     //
     //error handlers

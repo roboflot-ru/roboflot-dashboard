@@ -1,7 +1,7 @@
 import {JetView, plugins} from "webix-jet";
 
 const menu_data = [
-     {id: "dashboard", icon: "dashboard", value: "Dashboard"}
+     {id: "dashboard/list", icon: "dashboard", value: "Dashboard"}
     ,{id: "missions", icon: "globe", value:"Missions"}
     ,{id: "flightlogs", icon: "file-text-o", value:"Flight logs"}
     ,{id: "reports", icon: "line-chart", value:"Reports"}
@@ -21,10 +21,6 @@ const menu_data = [
 
 //*
 export default class SidebarView extends JetView{
-	init(){
-		webix.$$("sidebar1").parse(menu_data);
-		this.use(plugins.Menu, "sidebar1");
-	}
 	config(){
 		return {
 		    id: "sidebar1"
@@ -55,6 +51,25 @@ export default class SidebarView extends JetView{
 			}
 		};
 	}
+
+    init(view){
+		webix.$$("sidebar1").parse(menu_data);
+		this.use(plugins.Menu, "sidebar1");
+
+        /*
+        webix.$$("sidebar1").attachEvent('onafterselect', item => {
+            console.log('menu clicked 2');
+            console.log(item);
+
+            view.show('./' + item);
+        });
+        */
+	}
+
+	ready(view){
+
+    }
+
 }
 //*/
 

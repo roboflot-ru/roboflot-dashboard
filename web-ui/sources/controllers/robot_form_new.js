@@ -1,4 +1,4 @@
-import Robot from './../models/Robot';
+import RobotsCollection from './../models/RobotsCollection';
 
 export default {
     view: null
@@ -10,28 +10,40 @@ export default {
              view.queryView({ view:"datatable" }) = get child view
              view.$scope.show('/app/view') = change view
         */
-
-        this.view = view;
+        console.log('robot_form_new INIT');
 
         //
         // Link control elements to its controllers
 
         // Cancel button
-        view.$scope.$$('button:cancel').attachEvent('onitemclick', () => this.cancelButton() );
+        view.$scope.$$('button:cancel').attachEvent('onItemClick', () => this.cancelButton(view.$scope) );
 
         // Save button
-        view.$scope.$$('button:save').attachEvent('onitemclick', () => this.saveButton() );
+        view.$scope.$$('button:save').attachEvent('onItemClick', () => this.saveButton(view.$scope) );
+
+        console.log('robot_form_new INIT END');
+
+    }
+
+    ,destroy: function(t){
+        console.log('robot_form_new DESTROY');
+
+        t.$$('button:cancel').detachEvent('onItemClick');
+        t.$$('button:save').detachEvent('onItemClick');
 
     }
 
     // Save
-    ,saveButton: function(){
+    ,saveButton: function(scope){
         console.log('saving new robot');
 
-        const form = this.view.queryView({ view:"form" });
+        const form = scope.getRoot().queryView({ view:"form" });
         const values = form.getValues();
 
-        this.view.disable();
+        form.disable();
+        scope.$$('button:save').disable();
+
+        // TODO validate form
 
         webix.ajax().post('/api/robots/', values).then( d => {
             const resp = d.json();
@@ -41,35 +53,33 @@ export default {
             if( 'success' == resp.status ){
                 webix.message('New robot saved');
 
-                // TODO добавить робота в список
-                // создать модель класса, и он сам добавит себя в список
+                // добавить робота в список
+                RobotsCollection.add(resp.data);
 
-                const new_robot = new Robot(resp.robot_id);
+                this.cancelButton(scope);
 
             }
             else {
                 webix.message({type: 'error', text: resp.message});
+
+                form.enable();
+                scope.$$('button:save').enable();
             }
-
-            this.view.enable();
-
-
 
         }).fail( e => {
             console.log(e);
 
-            this.view.enable();
+            form.enable();
+            scope.$$('button:save').enable();
 
             webix.message('ERROR');
         });
     }
 
     // Cancel
-    ,cancelButton: function(){
+    ,cancelButton: function(scope){
         // switch back to list
-        this.view.$scope.app.$$('side_view1').setValue('robots_list_view');
-
-        // clear form
-        this.view.queryView({ view:"form" }).clear();
+        scope.show('./list');
     }
+
 }

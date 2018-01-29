@@ -88,6 +88,9 @@ https://www.npmjs.com/package/connect-redis
 node-scrypt
 https://github.com/barrysteyn/node-scrypt
 
+socket.io - Redis
+https://github.com/socketio/socket.io-redis
+
 
 
 Webix docs

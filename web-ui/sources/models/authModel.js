@@ -80,7 +80,7 @@ export class authModel {
         if( this.credentials ){
             console.log('io connect with gcsid ' + this.credentials.gcsid);
 
-            app.socketio = app.io(app.config.io_server + '?gcs_id=' + this.credentials.gcsid);
+            app.socketio = app.io({query: {gcs_id: this.credentials.gcsid}});
 
             app.socketio.on('connect', function(){
                 console.log('socketio CONNECTED');

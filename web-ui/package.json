@@ -31,6 +31,8 @@
   "dependencies": {
     "js-cookie": "^2.1.4",
     "socket.io-client": "^2.0.4",
-    "webix-jet": "^1.3.3"
+    "webix-jet": "^1.3.3",
+    "webpack-dev-middleware": "^2.0.4",
+    "webpack-hot-middleware": "^2.21.0"
   }
 }

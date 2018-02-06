@@ -38,8 +38,9 @@ https://www.digitalocean.com/community/tutorials/how-to-install-and-use-redis
     redis-server
     rethinkdb
     node web-ui-server
+    node mavlink-io-server
     cd web-ui
-    node start
+    npm run start
 
 
 # Deploying
@@ -78,6 +79,9 @@ http://justonepixel.com/thinky/documentation/api/thinky/
 
 Redis Configuration
 https://redis.io/topics/config
+
+Node-Redis client
+https://github.com/NodeRedis/node_redis
 
 Express session
 https://github.com/expressjs/session

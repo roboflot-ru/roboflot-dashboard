@@ -9,39 +9,23 @@
 
  */
 
-//
-//  CONFIGURATION
-//
-
 const config = require('./config');
-
-// system_id and component_id as set on your board (both defaults to 1)
-const BOARD_SYS_ID = 1;
-const BOARD_COMP_ID = 1;
-
-const MAVLINK_VERSION = "v1.0";
-const MAVLINK_MSG_DEF = ["common", "ardupilotmega"];
-
-// Redis server config
-const REDIS_SERVER = 'localhost';
-const REDIS_PORT = 6379;
-
-// RethinkDB server config
-const RETHINKDB_SERVER = 'localhost';
-const RETHINKDB_PORT = 28015;
-
 
 
 // HTTP server init
 const app = require('express')();
 const http = require('http').Server(app);
 
+
 // Socket.io_server server init
 const io_server = require('socket.io')(http);
+const io_redis_adapter = require('socket.io-redis');
+io_server.adapter(io_redis_adapter({ host: config.redis_host, port: config.redis_port }));
+
 
 // Redis client init
 const redis = require('redis');
-const redisClient = redis.createClient({ host: REDIS_SERVER, port: REDIS_PORT });
+const redisClient = redis.createClient({ host: config.redis_host, port: config.redis_port });
 redisClient.on('ready',function() {
     console.log("Redis is ready");
 });
@@ -49,23 +33,32 @@ redisClient.on('error',function() {
     console.log("Error in Redis");
 });
 
+const redis_sub = redisClient.duplicate();
+const redis_pub = redisClient.duplicate();
+
+
 // Rethink DB init
 const rethinkdb = require('rethinkdb');
 let rethinkdb_connection = null;
-rethinkdb.connect( {host: RETHINKDB_SERVER, port: RETHINKDB_PORT}, function(err, conn) {
+rethinkdb.connect( {host: config.RETHINKDB_SERVER, port: config.RETHINKDB_PORT}, function(err, conn) {
     if (err) throw err;
     rethinkdb_connection = conn;
 });
 
+
 // Node-mavlink init
 const mavlink = require('mavlink');
-const myMAV = new mavlink(BOARD_SYS_ID, BOARD_COMP_ID, MAVLINK_VERSION, MAVLINK_MSG_DEF);
+const myMAV = new mavlink(config.BOARD_SYS_ID, config.BOARD_COMP_ID, config.MAVLINK_VERSION, config.MAVLINK_MSG_DEF);
+
 
 // Counting messages
 let mavlink_msg_counter = 0;
 let video_frames_counter = 0;
 
+
+// Robot DB model
 const RobotModel = require('./models/robot.js');
+
 
 // After mavlink has parsed message definition XML files, it is ready to decode incoming messages
 myMAV.on("ready", function() {
@@ -77,11 +70,15 @@ myMAV.on("ready", function() {
 
         // Get parameters from socket.io_server connection to find out who is it
         let robot_id = io_client.handshake.query.robot_id;
-        let gcs_id = io_client.handshake.query.gcs_id;
+
+        // redis keys
+        let robot_params_key = null
+            ,robot_status_key = null
+            // socket.io telemetry room
+            ,robot_io_telemetry_room = null;
 
         // The handshake details:
         /*
-
         {
             headers: // the headers sent as part of the handshake,
             time: // the date of creation (as string),
@@ -94,32 +91,64 @@ myMAV.on("ready", function() {
         }
         */
 
-
         //
         // In case we have board connected
         if( robot_id ){
             console.log('robot ' + robot_id);
 
-            // TODO
-            /*
-                Here we check if this robot id is in our database
-                If it's not, then we break connection and put it's IP to blacklist (time-limited)
-
-                const client_ip = io_client.handshake.address
-                io_client.disconnect(true)
-
-                User.get("0e4a6f6f-cc0c-4aa5-951a-fcfc480dd05a").getJoin({account: true})
-                .run().then(function(user) {
-             */
-
+            // check if this robot id is in the database
             RobotModel.get(robot_id).run().then(function(robot){
+                // If it's not, then break connection
                 if( !robot ){
                     console.log('robot not found ' + robot_id);
                     io_client.disconnect(true);
+
+                    // TODO blacklist IP address if it tries to connect too often
                 }
+
+                // robot in DB
                 else {
+                    robot_params_key = 'robot_params_' + robot_id;
+                    robot_status_key = 'robot_status_' + robot_id;
+                    robot_io_telemetry_room = 'robot_telemetry_' + robot_id;
+
+                    // set robot status online and user_id
+                    redisClient.hmset(robot_status_key, {'online': 1, 'user_id': robot.user_id});
+
                     // Joining to socket.io room with robot id. It is used to communicate with web-client
-                    io_client.join('robot_' + robot_id);
+                    io_client.join(robot_io_telemetry_room);
+
+                    // слушать канал с командами
+                    redis_sub.subscribe('gcs_command_to_' + robot_id);
+
+                    // если получена команда для этого робота
+                    redis_sub.on('message', function(r, cd){ // robot_id, command_data
+                        if( r == 'gcs_command_to_' + robot_id ){
+                            console.log('GOT COMMAND for ' + robot_id);
+
+                            const com_data = JSON.parse(cd);
+                            //console.log(com_data);
+
+                            myMAV.createMessage(com_data.command, com_data.params, function(message){
+                                console.log('sending command ' + com_data.params.command);
+                                io_server.to(robot_io_telemetry_room).emit('fromserver', message.buffer);
+                            });
+                        }
+                    });
+
+                    // emits message to board
+                    const send_to_board = function(message){
+                        io_client.emit('fromserver', message.buffer);
+                    };
+
+                    // send message to board to get params list
+                    myMAV.createMessage("PARAM_REQUEST_LIST", {
+                        'target_system': config.BOARD_SYS_ID
+                        ,'target_component': config.BOARD_COMP_ID
+                    }, send_to_board);
+
+                    // TODO создать канал редис для робота и получать тут команды
+
 
                     // Telemetry hash
                     // After mavlink message parsed the values are collected here.
@@ -157,9 +186,16 @@ myMAV.on("ready", function() {
                         ,pos_vy: 0
                         ,pos_vz: 0
                         ,pos_hdg: 0
+
+                        ,type: null //
+                        ,autopilot: null //
+                        ,b_mode: null // base mode from heartbeat
+                        ,c_mode: null // custom mode from heartbeat
+                        ,sys_status: null // system status from heartbeat
+                        ,mav_v: null
                     };
 
-                    // When we get incoming message from socket.io client
+                    // When we get incoming message from board
                     io_client.on('fromboard', function(msg){
 
                         // it is parsed by node-mavlink (mavlink issues 'message' event once it's ready
@@ -184,16 +220,76 @@ myMAV.on("ready", function() {
 
                     // TODO 0 !!!
                     myMAV.on("HEARTBEAT", function(message, fields) {
-                        //console.log('heartbeat');
-                        //console.log(fields);
+                        /*
+                            type	uint8_t	Type of the MAV (quadrotor, helicopter, etc., up to 15 types, defined in MAV_TYPE ENUM) (Enum:MAV_TYPE )
+                            autopilot	uint8_t	Autopilot type / class. defined in MAV_AUTOPILOT ENUM (Enum:MAV_AUTOPILOT )
+                            base_mode	uint8_t	System mode bitfield, see MAV_MODE_FLAG ENUM in mavlink/include/mavlink_types.h (Enum:MAV_MODE_FLAG )
+                            custom_mode	uint32_t	A bitfield for use for autopilot-specific flags.
+                            system_status	uint8_t	System status flag, see MAV_STATE ENUM (Enum:MAV_STATE )
+                            mavlink_version	uint8_t_mavlink_version	MAVLink version, not writable by user, gets added by protocol because of magic data type: uint8_t_mavlink_version
+
+                            MAV_MODE_FLAG
+                                128	MAV_MODE_FLAG_SAFETY_ARMED	0b10000000 MAV safety set to armed. Motors are enabled / running / can start. Ready to fly. Additional note: this flag is to be ignore when sent in the command MAV_CMD_DO_SET_MODE and MAV_CMD_COMPONENT_ARM_DISARM shall be used instead. The flag can still be used to report the armed state.
+                                64	MAV_MODE_FLAG_MANUAL_INPUT_ENABLED	0b01000000 remote control input is enabled.
+                                32	MAV_MODE_FLAG_HIL_ENABLED	0b00100000 hardware in the loop simulation. All motors / actuators are blocked, but internal software is full operational.
+                                16	MAV_MODE_FLAG_STABILIZE_ENABLED	0b00010000 system stabilizes electronically its attitude (and optionally position). It needs however further control inputs to move around.
+                                8	MAV_MODE_FLAG_GUIDED_ENABLED	0b00001000 guided mode enabled, system flies waypoints / mission items.
+                                4	MAV_MODE_FLAG_AUTO_ENABLED	0b00000100 autonomous mode enabled, system finds its own goal positions. Guided flag can be set or not, depends on the actual implementation.
+                                2	MAV_MODE_FLAG_TEST_ENABLED	0b00000010 system has a test mode enabled. This flag is intended for temporary system tests and should not be used for stable implementations.
+                                1	MAV_MODE_FLAG_CUSTOM_MODE_ENABLED	0b00000001 Reserved for future use.
+
+                            MAV_STATE
+                                MAV_STATE_UNINIT	Uninitialized system, state is unknown.
+                                MAV_STATE_BOOT	System is booting up.
+                                MAV_STATE_CALIBRATING	System is calibrating and not flight-ready.
+                                MAV_STATE_STANDBY	System is grounded and on standby. It can be launched any time.
+                                MAV_STATE_ACTIVE	System is active and might be already airborne. Motors are engaged.
+                                MAV_STATE_CRITICAL	System is in a non-normal flight mode. It can however still navigate.
+                                MAV_STATE_EMERGENCY	System is in a non-normal flight mode. It lost control over parts or over the whole airframe. It is in mayday and going down.
+                                MAV_STATE_POWEROFF	System just initialized its power-down sequence, will shut down now.
+                                MAV_STATE_FLIGHT_TERMINATION	System is terminating itself.
+                         */
+
+                        telemetry.type = fields.type;
+                        telemetry.autopilot = fields.autopilot;
+                        telemetry.b_mode = '';
+                        telemetry.c_mode = fields.custom_mode;
+                        telemetry.sys_status = fields.system_status;
+                        telemetry.mav_v = fields.mavlink_version;
+
+                        if( 1 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_CUSTOM_MODE_ENABLED ';
+                        if( 2 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_TEST_ENABLED ';
+                        if( 4 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_AUTO_ENABLED ';
+                        if( 8 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_GUIDED_ENABLED ';
+                        if( 16 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_STABILIZE_ENABLED ';
+                        if( 32 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_HIL_ENABLED ';
+                        if( 64 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_MANUAL_INPUT_ENABLED ';
+                        if( 128 & fields.base_mode ) telemetry.b_mode = telemetry.b_mode + 'MAV_MODE_FLAG_SAFETY_ARMED ';
+
                     });
 
                     // 1
                     myMAV.on("SYS_STATUS", function(message, fields) {
                         telemetry.sys_load = Math.round(fields.load/10);
-                        telemetry.bat_v = fields.voltage_battery;
+                        telemetry.bat_v = fields.voltage_battery / 1000;
                         telemetry.bat_c = fields.current_battery;
                         telemetry.bat_rem = fields.battery_remaining;
+
+                        /*
+                            onboard_control_sensors_present	uint32_t	Bitmask showing which onboard controllers and sensors are present. Value of 0: not present. Value of 1: present. Indices defined by ENUM MAV_SYS_STATUS_SENSOR (Enum:MAV_SYS_STATUS_SENSOR )
+                            onboard_control_sensors_enabled	uint32_t	Bitmask showing which onboard controllers and sensors are enabled: Value of 0: not enabled. Value of 1: enabled. Indices defined by ENUM MAV_SYS_STATUS_SENSOR (Enum:MAV_SYS_STATUS_SENSOR )
+                            onboard_control_sensors_health	uint32_t	Bitmask showing which onboard controllers and sensors are operational or have an error: Value of 0: not enabled. Value of 1: enabled. Indices defined by ENUM MAV_SYS_STATUS_SENSOR (Enum:MAV_SYS_STATUS_SENSOR )
+                            load	uint16_t	Maximum usage in percent of the mainloop time, (0%: 0, 100%: 1000) should be always below 1000 (Units: d%)
+                            voltage_battery	uint16_t	Battery voltage, in millivolts (1 = 1 millivolt) (Units: mV)
+                            current_battery	int16_t	Battery current, in 10*milliamperes (1 = 10 milliampere), -1: autopilot does not measure the current (Units: cA)
+                            battery_remaining	int8_t	Remaining battery energy: (0%: 0, 100%: 100), -1: autopilot estimate the remaining battery (Units: %)
+                            drop_rate_comm	uint16_t	Communication drops in percent, (0%: 0, 100%: 10'000), (UART, I2C, SPI, CAN), dropped packets on all links (packets that were corrupted on reception on the MAV) (Units: c%)
+                            errors_comm	uint16_t	Communication errors (UART, I2C, SPI, CAN), dropped packets on all links (packets that were corrupted on reception on the MAV)
+                            errors_count1	uint16_t	Autopilot-specific errors
+                            errors_count2	uint16_t	Autopilot-specific errors
+                            errors_count3	uint16_t	Autopilot-specific errors
+                            errors_count4	uint16_t	Autopilot-specific errors
+                         */
 
                     });
 
@@ -208,11 +304,19 @@ myMAV.on("ready", function() {
                         console.log('PING ');
                     });
 
-                    // TODO !! 22
+                    // 22
                     myMAV.on("PARAM_VALUE", function(message, fields) {
-                        //console.log('PARAM VALUE 22');
+                        //console.log('PARAM VALUE ' + fields.param_id + ' = ' + fields.param_value + ' (' + fields.param_count + ')');
+
+                        // save params to redis hash with robot_id key
+                        redisClient.hset(robot_params_key, fields.param_id.replace(/\0/g, ''), fields.param_value);
+                        redisClient.hset(robot_params_key, 'params_count', fields.param_count);
+
                         /*
-                        param_id	char[16]	Onboard parameter id, terminated by NULL if the length is less than 16 human-readable chars and WITHOUT null termination (NULL) byte if the length is exactly 16 chars - applications have to provide 16+1 bytes storage if the ID is stored as string
+                        param_id	char[16]	Onboard parameter id, terminated by NULL if the length is less than 16
+                        human-readable chars and WITHOUT null termination (NULL) byte if the length is exactly 16 chars -
+                        applications have to provide 16+1 bytes storage if the ID is stored as string
+
                         param_value	float	Onboard parameter value
                         param_type	uint8_t	Onboard parameter type: see the MAV_PARAM_TYPE enum for supported data types. (Enum:MAV_PARAM_TYPE )
                         param_count	uint16_t	Total number of onboard parameters
@@ -229,6 +333,7 @@ myMAV.on("ready", function() {
                         9	MAV_PARAM_TYPE_REAL32	32-bit floating-point
                         10	MAV_PARAM_TYPE_REAL64	64-bit floating-point
                          */
+
                     });
 
                     // 24
@@ -297,14 +402,46 @@ myMAV.on("ready", function() {
 
                     });
 
-                    // TODO 42
-                    myMAV.on("MISSION_CURRENT", function(message, fields) {
-
+                    // TODO 39
+                    myMAV.on("MISSION_ITEM", function(message, fields) {
+                        console.log("39 MISSION_ITEM");
+                        console.log(fields);
                     });
 
-                    // 44
+                    // TODO 42
+                    myMAV.on("MISSION_CURRENT", function(message, fields) {
+                        //console.log('42 MISSION_CURRENT ' + fields.seq);
+                    });
+
+                    // TODO 44
                     myMAV.on("MISSION_COUNT", function(message, fields) {
-                        console.log('44 MISSION COUNT');
+                        console.log('44 MISSION COUNT ' + fields.count);
+                    });
+
+                    // TODO 46
+                    myMAV.on("MISSION_ITEM_REACHED", function(message, fields) {
+                        /*
+                            A certain mission item has been reached.
+                            The system will either hold this position (or circle on the orbit) or
+                            (if the autocontinue on the WP was set) continue to the next waypoint.
+
+                            seq	uint16_t	Sequence
+                         */
+                        console.log('46 MISSION_ITEM_REACHED ' + fields.seq);
+                    });
+
+                    // TODO 47
+                    myMAV.on("MISSION_ACK", function(message, fields) {
+                        /*
+                            Ack message during waypoint handling. The type field states if this message is a positive ack (type=0)
+                            or if an error happened (type=non-zero).
+
+                            target_system	uint8_t	System ID
+                            target_component	uint8_t	Component ID
+                            type	uint8_t	See MAV_MISSION_RESULT enum (Enum:MAV_MISSION_RESULT )
+                            mission_type **	uint8_t	Mission type, see MAV_MISSION_TYPE (Enum:MAV_MISSION_TYPE )
+                         */
+                        console.log('47 MISSION_ACK ' + fields.type);
                     });
 
                     // TODO !! 62
@@ -321,9 +458,45 @@ myMAV.on("ready", function() {
                          */
                     });
 
+                    // TODO 73
+                    myMAV.on("MISSION_ITEM_INT", function(message, fields) {
+                        /*
+                            Message encoding a mission item. This message is emitted to announce the presence of a mission item and to set a mission item on the system. The mission item can be either in x, y, z meters (type: LOCAL) or x:lat, y:lon, z:altitude. Local frame is Z-down, right handed (NED), global frame is Z-up, right handed (ENU). See alsohttp://qgroundcontrol.org/mavlink/waypoint_protocol.+
+
+                                Field Name	Type	Description
+                                target_system	uint8_t	System ID
+                                target_component	uint8_t	Component ID
+                                seq	uint16_t	Waypoint ID (sequence number). Starts at zero. Increases monotonically for each waypoint, no gaps in the sequence (0,1,2,3,4).
+                                frame	uint8_t	The coordinate system of the waypoint. see MAV_FRAME in mavlink_types.h (Enum:MAV_FRAME )
+                                command	uint16_t	The scheduled action for the waypoint. see MAV_CMD in common.xml MAVLink specs (Enum:MAV_CMD )
+                                current	uint8_t	false:0, true:1
+                                autocontinue	uint8_t	autocontinue to next wp
+                                param1	float	PARAM1, see MAV_CMD enum
+                                param2	float	PARAM2, see MAV_CMD enum
+                                param3	float	PARAM3, see MAV_CMD enum
+                                param4	float	PARAM4, see MAV_CMD enum
+                                x	int32_t	PARAM5 / local: x position in meters * 1e4, global: latitude in degrees * 10^7
+                                y	int32_t	PARAM6 / y position: local: x position in meters * 1e4, global: longitude in degrees *10^7
+                                z	float	PARAM7 / z position: global: altitude in meters (relative or absolute, depending on frame.
+                                mission_type **	uint8_t	Mission type, see MAV_MISSION_TYPE (Enum:MAV_MISSION_TYPE )
+
+                         */
+
+                        console.log('73 MISSION_ITEM_INT');
+                    });
+
                     // TODO 74
                     myMAV.on("VFR_HUD", function(message, fields) {
-
+                        /*
+                            Metrics typically displayed on a HUD for fixed wing aircraft
+                                Field Name	Type	Description
+                                airspeed	float	Current airspeed in m/s (Units: m/s)
+                                groundspeed	float	Current ground speed in m/s (Units: m/s)
+                                heading	int16_t	Current heading in degrees, in compass units (0..360, 0=north) (Units: deg)
+                                throttle	uint16_t	Current throttle setting in integer percent, 0 to 100 (Units: %)
+                                alt	float	Current altitude (MSL), in meters (Units: m)
+                                climb	float	Current climb rate in meters/second (Units: m/s)
+                         */
                     });
 
                     // TODO !! 77
@@ -343,6 +516,11 @@ myMAV.on("ready", function() {
 
 
                          */
+
+                        redis_pub.publish('gcs_command_ack_' + robot_id, JSON.stringify(fields));
+
+                        console.log('77 COMMAND_ACK   com:' + fields.command + ', res: ' + fields.result);
+
                     });
 
                     // TODO !! 125
@@ -352,6 +530,16 @@ myMAV.on("ready", function() {
                         Vservo	uint16_t	servo rail voltage in millivolts (Units: mV)
                         flags	uint16_t	power supply status flags (see MAV_POWER_STATUS enum) (Enum:MAV_POWER_STATUS )
                          */
+                    });
+
+                    // TODO 141
+                    myMAV.on("ALTITUDE", function(message, fields) {
+                        console.log('141 ALTITUDE');
+                    });
+
+                    // TODO 149
+                    myMAV.on("LANDING_TARGET", function(message, fields) {
+                        console.log('149 LANDING_TARGET');
                     });
 
                     // TODO 152
@@ -409,8 +597,13 @@ myMAV.on("ready", function() {
 
                     });
 
-
-
+                    // TODO 244
+                    myMAV.on("MESSAGE_INTERVAL", function(message, fields) {
+                        /*
+                            message_id	uint16_t	The ID of the requested MAVLink message. v1.0 is limited to 254 messages.
+                            interval_us	int32_t	The interval between two messages, in microseconds. A value of -1 indicates this stream is disabled, 0 indicates it is not available, > 0 indicates the interval at which it is sent. (Units: us)
+                         */
+                    });
 
                     // TODO !! 253
                     myMAV.on("STATUSTEXT", function(message, fields) {
@@ -428,6 +621,12 @@ myMAV.on("ready", function() {
                             7	MAV_SEVERITY_DEBUG	Useful non-operational messages that can assist in debugging. These should not occur during normal operation.
 
                          */
+
+                        console.log('253 STATUSTEXT:     ' + fields.severity + ' ' + fields.text);
+
+                        // TODO
+                        // сохранить текстовые сообщения в БД по дате и вывести в панель последние 10
+
 
                     });
 
@@ -463,7 +662,7 @@ myMAV.on("ready", function() {
                         // update server time
                         telemetry.server_time = (new Date()).getTime();
                         // send message to room (web client uses this data to update realtime telemetry on screen
-                        io_server.to('robot_' + robot_id).emit('telem_' +  robot_id, telemetry);
+                        io_server.to(robot_io_telemetry_room).emit('telem_' +  robot_id, telemetry);
                     }, 1000); // 500 msec = 2 times in a second
 
 
@@ -485,37 +684,17 @@ myMAV.on("ready", function() {
 
         }
 
-        //
-        // In case a web client connected
-        else if( gcs_id ) {
-            console.log('GCS');
-
-            redisClient.get('gcs_id_' + gcs_id, function(err, user_id) {
-                if( !user_id ){
-                    console.log('gcs not found ' + gcs_id);
-                    io_client.disconnect(true);
-                }
-                else {
-                    // get all robots of our client
-                    RobotModel.filter({user_id: user_id}).run().then(function(result) {
-                        for( let i = 0; i < result.length; i++ ){
-                            io_client.join('robot_' + result[i].id);
-                        }
-
-                        console.log('gcs ' + gcs_id + ' joined ' + result.length + ' robots');
-
-                    });
-
-                    // now web client will receive messages from all its robots
-                }
-            });
-
-        }
-
-
         // client disconnected
         io_client.on('disconnect', function(){
             console.log('client disconnected');
+
+            // TODO проверить онлайн по таймеру
+            redisClient.hset(robot_status_key, 'online', 0);
+
+            if( robot_id ){
+                redis_sub.unsubscribe('gcs_command_to_' + robot_id);
+            }
+
         });
 
     });
@@ -535,3 +714,292 @@ setInterval(function(){
 http.listen(3000, function(){
   console.log('listening on *:3000');
 });
+
+
+
+
+/*
+
+        //
+        // In case a web client connected
+        else if( gcs_id ) {
+            console.log('GCS');
+
+            redisClient.get('user_id_for_gcs_' + gcs_id, function(err, user_id) {
+                if( !user_id ){
+                    console.log('gcs user not found ' + gcs_id);
+                    io_client.disconnect(true);
+                }
+                else {
+                    // get all robots of our client
+                    RobotModel.filter({user_id: user_id}).run().then(function(result) {
+                        for( let i = 0; i < result.length; i++ ){
+                            io_client.join('robot_' + result[i].id);
+                        }
+
+                        console.log('gcs ' + gcs_id + ' joined ' + result.length + ' robots');
+
+                        io_client.on('arming', function(data){
+                            console.log('arming');
+                            console.log(data);
+
+                            // TODO send arming MAVlink to board
+
+                            myMAV.createMessage("COMMAND_LONG", {
+                                'target_system': config.BOARD_SYS_ID
+                                ,'target_component': config.BOARD_COMP_ID
+                                ,'command': 400 // arm/disarm
+                                ,'confirmation': 0
+                                ,'param1': 1 // arm
+                                ,'param2': null
+                                ,'param3': null
+                                ,'param4': null
+                                ,'param5': null
+                                ,'param6': null
+                                ,'param7': null
+                            }, function(message){
+                                io_server.to('robot_' + data).emit('fromserver', message.buffer);
+
+                                // TODO зарегистрировать отправку сообщения и подождать подтверждения
+
+                            });
+
+
+
+                        });
+
+                    });
+
+                    // now web client will receive messages from all its robots
+                }
+            });
+
+        }
+
+
+ */
+
+
+
+// Server useful MAVLINK commands
+/*
+    PARAM_REQUEST_READ ( #20 )
+    PARAM_REQUEST_LIST ( #21 )
+
+    PARAM_SET ( #23 )
+        Set a parameter value TEMPORARILY to RAM. It will be reset to default on system reboot.
+        ** Send the ACTION MAV_ACTION_STORAGE_WRITE to PERMANENTLY write the RAM contents to EEPROM. **
+
+    COMMAND_INT ( #75 )
+        Message encoding a command with parameters as scaled integers. Scaling depends on the actual command value.
+
+    COMMAND_LONG ( #76 )
+        Send a command with up to seven parameters to the MAV
+
+    MISSION_REQUEST_LIST ( #43 )
+        Request the overall list of mission items from the system/component.
+
+        MISSION_COUNT ( #44 )
+        This message is emitted as response to MISSION_REQUEST_LIST by the MAV and to initiate a write transaction.
+        The GCS can then request the individual mission item based on the knowledge of the total number of waypoints.
+        count	uint16_t	Number of mission items in the sequence
+
+    MISSION_REQUEST_PARTIAL_LIST ( #37 )
+
+    MISSION_WRITE_PARTIAL_LIST ( #38 )
+
+    MISSION_REQUEST ( #40 )
+        Request the information of the mission item with the sequence number seq.
+        The response of the system to this message should be a MISSION_ITEM message.
+
+    MISSION_REQUEST_INT ( #51 )
+        Request the information of the mission item with the sequence number seq.
+        The response of the system to this message should be a MISSION_ITEM_INT message.
+
+    MISSION_SET_CURRENT ( #41 )
+        Set the mission item with sequence number seq as current item.
+        This means that the MAV will continue to this mission item on the shortest path
+        (not following the mission items in-between).
+
+    MISSION_CLEAR_ALL ( #45
+        Delete all mission items at once.
+
+
+
+COMMANDS
+
+
+21	MAV_CMD_NAV_LAND	Land at location
+    Mission Param #1	Abort Alt
+    Mission Param #2	Precision land mode. (0 = normal landing, 1 = opportunistic precision landing, 2 = required precsion landing)
+    Mission Param #3	Empty
+    Mission Param #4	Desired yaw angle. NaN for unchanged.
+    Mission Param #5	Latitude
+    Mission Param #6	Longitude
+    Mission Param #7	Altitude (ground level)
+
+
+22	MAV_CMD_NAV_TAKEOFF	Takeoff from ground / hand
+    Mission Param #1	Minimum pitch (if airspeed sensor present), desired pitch without sensor
+    Mission Param #2	Empty
+    Mission Param #3	Empty
+    Mission Param #4	Yaw angle (if magnetometer present), ignored without magnetometer. NaN for unchanged.
+    Mission Param #5	Latitude
+    Mission Param #6	Longitude
+    Mission Param #7	Altitude
+
+
+176	MAV_CMD_DO_SET_MODE	Set system mode.
+    Mission Param #1	Mode, as defined by ENUM MAV_MODE
+    Mission Param #2	Custom mode - this is system specific, please refer to the individual autopilot specifications for details.
+    Mission Param #3	Custom sub mode - this is system specific, please refer to the individual autopilot specifications for details.
+    Mission Param #4	Empty
+    Mission Param #5	Empty
+    Mission Param #6	Empty
+    Mission Param #7	Empty
+
+        MAV_MODE
+            0	MAV_MODE_PREFLIGHT	System is not ready to fly, booting, calibrating, etc. No flag is set.
+            80	MAV_MODE_STABILIZE_DISARMED	System is allowed to be active, under assisted RC control.
+            208	MAV_MODE_STABILIZE_ARMED	System is allowed to be active, under assisted RC control.
+            64	MAV_MODE_MANUAL_DISARMED	System is allowed to be active, under manual (RC) control, no stabilization
+            192	MAV_MODE_MANUAL_ARMED	System is allowed to be active, under manual (RC) control, no stabilization
+            88	MAV_MODE_GUIDED_DISARMED	System is allowed to be active, under autonomous control, manual setpoint
+            216	MAV_MODE_GUIDED_ARMED	System is allowed to be active, under autonomous control, manual setpoint
+            92	MAV_MODE_AUTO_DISARMED	System is allowed to be active, under autonomous control and navigation (the trajectory is decided onboard and not pre-programmed by waypoints)
+            220	MAV_MODE_AUTO_ARMED	System is allowed to be active, under autonomous control and navigation (the trajectory is decided onboard and not pre-programmed by waypoints)
+
+
+179	MAV_CMD_DO_SET_HOME	Changes the home location either to the current location or a specified location.
+    Mission Param #1	Use current (1=use current location, 0=use specified location)
+    Mission Param #2	Empty
+    Mission Param #3	Empty
+    Mission Param #4	Empty
+    Mission Param #5	Latitude
+    Mission Param #6	Longitude
+    Mission Param #7	Altitude
+
+
+209	MAV_CMD_DO_MOTOR_TEST	Mission command to perform motor test
+    Mission Param #1	motor number (a number from 1 to max number of motors on the vehicle)
+    Mission Param #2	throttle type (0=throttle percentage, 1=PWM, 2=pilot throttle channel pass-through. See MOTOR_TEST_THROTTLE_TYPE enum)
+    Mission Param #3	throttle
+    Mission Param #4	timeout (in seconds)
+    Mission Param #5	motor count (number of motors to test to test in sequence, waiting for the timeout above between them; 0=1 motor, 1=1 motor, 2=2 motors...)
+    Mission Param #6	motor test order (See MOTOR_TEST_ORDER enum)
+    Mission Param #7	Empty
+
+
+300	MAV_CMD_MISSION_START	start running a mission
+    Mission Param #1	first_item: the first mission item to run
+    Mission Param #2	last_item: the last mission item to run (after this item is run, the mission ends)
+
+
+
+400	MAV_CMD_COMPONENT_ARM_DISARM	Arms / Disarms a component
+    Mission Param #1	1 to arm, 0 to disarm
+
+
+410	MAV_CMD_GET_HOME_POSITION	Request the home position from the vehicle.
+    Mission Param #1	Reserved
+    Mission Param #2	Reserved
+    Mission Param #3	Reserved
+    Mission Param #4	Reserved
+    Mission Param #5	Reserved
+    Mission Param #6	Reserved
+    Mission Param #7	Reserved
+
+
+510	MAV_CMD_GET_MESSAGE_INTERVAL	Request the interval between messages for a particular MAVLink message ID
+    Mission Param #1	The MAVLink message ID
+
+
+511	MAV_CMD_SET_MESSAGE_INTERVAL	Request the interval between messages for a particular MAVLink message ID. This interface replaces REQUEST_DATA_STREAM
+    Mission Param #1	The MAVLink message ID
+    Mission Param #2	The interval between two messages, in microseconds. Set to -1 to disable and 0 to request default rate.
+
+
+
+
+
+
+
+MAV_TYPE
+
+CMD ID	Field Name	Description
+0	MAV_TYPE_GENERIC	Generic micro air vehicle.
+1	MAV_TYPE_FIXED_WING	Fixed wing aircraft.
+2	MAV_TYPE_QUADROTOR	Quadrotor
+3	MAV_TYPE_COAXIAL	Coaxial helicopter
+4	MAV_TYPE_HELICOPTER	Normal helicopter with tail rotor.
+5	MAV_TYPE_ANTENNA_TRACKER	Ground installation
+6	MAV_TYPE_GCS	Operator control unit / ground control station
+7	MAV_TYPE_AIRSHIP	Airship, controlled
+8	MAV_TYPE_FREE_BALLOON	Free balloon, uncontrolled
+9	MAV_TYPE_ROCKET	Rocket
+10	MAV_TYPE_GROUND_ROVER	Ground rover
+11	MAV_TYPE_SURFACE_BOAT	Surface vessel, boat, ship
+12	MAV_TYPE_SUBMARINE	Submarine
+13	MAV_TYPE_HEXAROTOR	Hexarotor
+14	MAV_TYPE_OCTOROTOR	Octorotor
+15	MAV_TYPE_TRICOPTER	Tricopter
+16	MAV_TYPE_FLAPPING_WING	Flapping wing
+17	MAV_TYPE_KITE	Kite
+18	MAV_TYPE_ONBOARD_CONTROLLER	Onboard companion controller
+19	MAV_TYPE_VTOL_DUOROTOR	Two-rotor VTOL using control surfaces in vertical operation in addition. Tailsitter.
+20	MAV_TYPE_VTOL_QUADROTOR	Quad-rotor VTOL using a V-shaped quad config in vertical operation. Tailsitter.
+21	MAV_TYPE_VTOL_TILTROTOR	Tiltrotor VTOL
+22	MAV_TYPE_VTOL_RESERVED2	VTOL reserved 2
+23	MAV_TYPE_VTOL_RESERVED3	VTOL reserved 3
+24	MAV_TYPE_VTOL_RESERVED4	VTOL reserved 4
+25	MAV_TYPE_VTOL_RESERVED5	VTOL reserved 5
+26	MAV_TYPE_GIMBAL	Onboard gimbal
+27	MAV_TYPE_ADSB	Onboard ADSB peripheral
+28	MAV_TYPE_PARAFOIL	Steerable, nonrigid airfoil
+29	MAV_TYPE_DODECAROTOR	Dodecarotor
+
+
+
+
+MAV_AUTOPILOT
+
+Micro air vehicle / autopilot classes. This identifies the individual model.
+CMD ID	Field Name	Description
+0	MAV_AUTOPILOT_GENERIC	Generic autopilot, full support for everything
+1	MAV_AUTOPILOT_RESERVED	Reserved for future use.
+2	MAV_AUTOPILOT_SLUGS	SLUGS autopilot, http://slugsuav.soe.ucsc.edu
+3	MAV_AUTOPILOT_ARDUPILOTMEGA	ArduPilotMega / ArduCopter, http://diydrones.com
+4	MAV_AUTOPILOT_OPENPILOT	OpenPilot, http://openpilot.org
+5	MAV_AUTOPILOT_GENERIC_WAYPOINTS_ONLY	Generic autopilot only supporting simple waypoints
+6	MAV_AUTOPILOT_GENERIC_WAYPOINTS_AND_SIMPLE_NAVIGATION_ONLY	Generic autopilot supporting waypoints and other simple navigation commands
+7	MAV_AUTOPILOT_GENERIC_MISSION_FULL	Generic autopilot supporting the full mission command set
+8	MAV_AUTOPILOT_INVALID	No valid autopilot, e.g. a GCS or other MAVLink component
+9	MAV_AUTOPILOT_PPZ	PPZ UAV - http://nongnu.org/paparazzi
+10	MAV_AUTOPILOT_UDB	UAV Dev Board
+11	MAV_AUTOPILOT_FP	FlexiPilot
+12	MAV_AUTOPILOT_PX4	PX4 Autopilot - http://pixhawk.ethz.ch/px4/
+13	MAV_AUTOPILOT_SMACCMPILOT	SMACCMPilot - http://smaccmpilot.org
+14	MAV_AUTOPILOT_AUTOQUAD	AutoQuad -- http://autoquad.org
+15	MAV_AUTOPILOT_ARMAZILA	Armazila -- http://armazila.com
+16	MAV_AUTOPILOT_AEROB	Aerob -- http://aerob.ru
+17	MAV_AUTOPILOT_ASLUAV	ASLUAV autopilot -- http://www.asl.ethz.ch
+18	MAV_AUTOPILOT_SMARTAP	SmartAP Autopilot - http://sky-drones.com
+
+
+
+MAV_MODE_FLAG
+
+These flags encode the MAV mode.
+CMD ID	Field Name	Description
+128	MAV_MODE_FLAG_SAFETY_ARMED	0b10000000 MAV safety set to armed. Motors are enabled / running / can start. Ready to fly. Additional note: this flag is to be ignore when sent in the command MAV_CMD_DO_SET_MODE and MAV_CMD_COMPONENT_ARM_DISARM shall be used instead. The flag can still be used to report the armed state.
+64	MAV_MODE_FLAG_MANUAL_INPUT_ENABLED	0b01000000 remote control input is enabled.
+32	MAV_MODE_FLAG_HIL_ENABLED	0b00100000 hardware in the loop simulation. All motors / actuators are blocked, but internal software is full operational.
+16	MAV_MODE_FLAG_STABILIZE_ENABLED	0b00010000 system stabilizes electronically its attitude (and optionally position). It needs however further control inputs to move around.
+8	MAV_MODE_FLAG_GUIDED_ENABLED	0b00001000 guided mode enabled, system flies waypoints / mission items.
+4	MAV_MODE_FLAG_AUTO_ENABLED	0b00000100 autonomous mode enabled, system finds its own goal positions. Guided flag can be set or not, depends on the actual implementation.
+2	MAV_MODE_FLAG_TEST_ENABLED	0b00000010 system has a test mode enabled. This flag is intended for temporary system tests and should not be used for stable implementations.
+1	MAV_MODE_FLAG_CUSTOM_MODE_ENABLED	0b00000001 Reserved for future use.
+
+
+
+ */

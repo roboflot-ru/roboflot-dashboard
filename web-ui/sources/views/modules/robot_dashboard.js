@@ -34,6 +34,7 @@ const view_config = {
             ,elements: [
                 {view:'icon', localId: 'button:return', icon: 'chevron-left', tooltip: 'Return to list'}
                 ,{gravity: 4}
+                ,{view: 'button', value: 'ARM', localId: 'button:arm'}
                 ,{view:'icon', localId: 'button:settings', icon: 'cog', tooltip: 'Settings'}
             ]
         }
@@ -136,6 +137,7 @@ const view_config = {
                             'Sys load: #sys_load# %<br/>' +
                             'Uptime: #uptime_formatted# <br/>'
                             + '<br/>'
+                            + 'Battery: #bat_v# V<br/>'
                             + 'Air pressure: #press_a# гПа<br/>'
                             + 'Air temp: #temp#<sup>o</sup>C <br/>'
                             + 'Roll: #roll#<sup>o</sup>, Pitch: #pitch#<sup>o</sup>, Compass: #yaw#<sup>o</sup> <br/>'

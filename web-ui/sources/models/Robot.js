@@ -72,7 +72,18 @@ export default class Robot {
         // Подключаемся к каналу телеметрии этого робота по его id
         window.jetapp.socketio.on('telem_' + this.id, telemetry => {
 
-            console.log('telem from ' + this.id);
+            // TODO
+            // получить heartbeat и поменять состояние панели
+
+            //console.log('telem from ' + this.id);
+            console.log(''
+                + 'b_mode:' + telemetry.b_mode + '   '
+                + 'c_mode:' + telemetry.c_mode + '   '
+                + 'type:' + telemetry.type + '   '
+                + 'autopilot:' + telemetry.autopilot + '   '
+                + 'ss:' + telemetry.sys_status + '   '
+                + 'mav:' + telemetry.mav_v + '   '
+            );
 
             this.last_telemetry = telemetry;
 
@@ -203,6 +214,18 @@ export default class Robot {
             console.log('MAP ERR');
         }
 
+    }
+
+    arm(){
+        webix.message('arming ' + this.id);
+
+        //window.jetapp.socketio.emit('arming', this.id);
+
+        webix.ajax().post('/api/robots/' + this.id + '/arm', {}, function(t,d){
+            const resp = d.json();
+
+            webix.message(resp.message);
+        });
     }
 
 }

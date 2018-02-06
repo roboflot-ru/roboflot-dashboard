@@ -3,13 +3,13 @@
 //
 const config = require('./config');
 
+const http = require('http');
 const express = require('express');
 const session = require('express-session');
 const RedisStore = require('connect-redis')(session);
 const bodyParser = require('body-parser');
 const app = express();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+const server = new http.Server(app);
 
 const scrypt = require("scrypt");
 const scryptParameters = scrypt.paramsSync(0.1);
@@ -17,11 +17,23 @@ const scryptParameters = scrypt.paramsSync(0.1);
 const crypto = require('crypto');
 
 /*
+const webpack = require('webpack');
+const webpackConfig = require('./web-ui/webpack.config');
+const compiler = webpack(webpackConfig);
+*/
+
+/*
 //const thinky = require('thinky')(); // {db: 'test'}
 //const r = thinky.r; // r: An instance of rethinkdbdash
 //const tErrors = thinky.Errors;
 //const r = require('rethinkdb');
  */
+
+// Socket.io_server server init
+const io_server = require('socket.io')(server);
+const io_redis_adapter = require('socket.io-redis');
+io_server.adapter(io_redis_adapter({ host: config.redis_host, port: config.redis_port }));
+
 
 // Redis client init
 const redis = require('redis');
@@ -32,6 +44,21 @@ redisClient.on('ready',function() {
 redisClient.on('error',function() {
     console.log("Error in Redis");
 });
+
+const redis_sub = redisClient.duplicate();
+const redis_pub = redisClient.duplicate();
+
+redis_sub.subscribe('gcs_commands_ack');
+
+/*
+app.use(require('webpack-dev-middleware')(compiler, {
+  noInfo: true,
+  publicPath: webpackConfig.output.publicPath,
+}));
+app.use(require('webpack-hot-middleware')(compiler));
+*/
+
+
 
 // Redis session init
 app.use(session({
@@ -46,8 +73,10 @@ app.use(session({
     }
 }));
 
+
 // static files init
 app.use(express.static(__dirname + '/web-ui'));
+
 
 // JSON parse init
 app.use(bodyParser.json());
@@ -130,7 +159,7 @@ app.post('/api/login', function (req, res) {
 
                 // save gcsid to redis to make socket.io communication robot <=> client
                 // TODO ограничить время, чтобы постоянно не висело в памяти и придумать процесс смены gcsid
-                redisClient.set('gcs_id_' + req.session.gcsid, req.session.userid);
+                redisClient.set('user_id_for_gcs_' + req.session.gcsid, req.session.userid);
 
                 // return data what client user.getUser() will have
                 res.json({
@@ -182,7 +211,7 @@ app.post('/api/logout', function (req, res){
 
 //
 // Robot model
-const Robot = require('./models/robot.js');
+const RobotModel = require('./models/robot.js');
 
 //
 // Creating new robot
@@ -196,7 +225,7 @@ app.post('/api/robots/', function (req, res) {
 
     if( req.body.name ){
         // Create new robot
-        const new_robot = new Robot({
+        const new_robot = new RobotModel({
             name: req.body.name
             ,color: req.body.color.replace('#','') || 'ffffff'
             ,batt_v: req.body.batt_v || 11.1
@@ -240,12 +269,112 @@ app.get('/api/robots/', function (req, res) {
         return;
     }
 
-    Robot.filter({user_id: req.session.userid}).run().then(function(result) {
+    RobotModel.filter({user_id: req.session.userid}).run().then(function(result) {
         res.json(result);
     });
 });
 
 
+//
+// Arming
+app.post('/api/robots/:robot_id/arm', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    // TODO
+    // 1 отправить сюда нажатие кнопки
+    // 2 отправить на борт сообщение arm через redis
+    // сделать отправку команды с подтверждением
+
+    /*
+    Как это сделать?
+
+    отправить в редис сообщение
+    получить его в mav-server и отправить дальше на борт
+
+    или кнопкой отправить сообщение в io и оттуда доделать сообщение и отправить на борт
+
+    как получить подтверждение команды?
+
+     */
+
+    console.log('arming ' + req.params.robot_id);
+
+    const robot_status_key = 'robot_status_' + req.params.robot_id;
+
+    redisClient.hgetall(robot_status_key, function(err, robot_status){
+        if( err ){
+            res.json({status: 'error', message: 'not found'});
+        }
+        else {
+            if( robot_status.online == 1 && robot_status.user_id == req.session.userid ){
+                console.log('robot online');
+
+                let resp_sent = false;
+
+
+                const timeout_resp = setTimeout(function(){
+                    console.log('timeout');
+                    res.json({status: 'error', message: 'timeout'});
+                    res.end();
+                    resp_sent= true;
+                }, 6000);
+
+
+                // подписаться на канал подтверждения команды
+                redis_sub.subscribe('gcs_command_ack_' + req.params.robot_id);
+
+                // отправить команду на борт
+                console.log('sending command');
+                redis_pub.publish('gcs_command_to_' + req.params.robot_id, JSON.stringify({
+                    command: 'COMMAND_LONG'
+                    ,params: {
+                                'target_system': config.BOARD_SYS_ID
+                                ,'target_component': config.BOARD_COMP_ID
+                                ,'command': 400 // arm/disarm
+                                ,'confirmation': 0
+                                ,'param1': 1 // arm
+                                ,'param2': null
+                                ,'param3': null
+                                ,'param4': null
+                                ,'param5': null
+                                ,'param6': null
+                                ,'param7': null
+                            }
+                }));
+
+                // подождать ответа и вернуть его
+                redis_sub.on('message', function(chan, data){
+                    if( chan == 'gcs_command_ack_' + req.params.robot_id ){
+                        console.log('COMMAND ACK for ' + req.params.robot_id);
+
+                        const command_resp = JSON.parse(data);
+
+                        if( !resp_sent ){
+                            resp_sent = true;
+                            console.log('sending ack');
+                            res.json({status: 'success', message: 'result = ' + command_resp.result});
+                            res.end();
+                        }
+
+                        clearTimeout(timeout_resp);
+                    }
+                });
+            }
+
+            else {
+                console.log('robot offline');
+
+                res.json({status: 'error', message: 'offline'});
+            }
+        }
+    });
+
+
+
+});
 
 
 //
@@ -258,7 +387,7 @@ app.get('/api/tests', function (req, res) {
         return;
     }
 
-    Robot.run().then(function(result) {
+    RobotModel.run().then(function(result) {
         res.json(result);
     });
 
@@ -355,10 +484,87 @@ app.put('/data/table_menu/:menuId', function (req, res) {
 
 
 
+// On socket.io_server client connected (board or web)
+io_server.on('connection', function(io_client) {
+    console.log('io client connected ' + io_client.handshake.address);
+
+    // Get parameters from socket.io_server connection to find out who is it
+    let gcs_id = io_client.handshake.query.gcs_id;
+
+    //
+    // In case a web client connected
+    if( gcs_id ) {
+        console.log('GCS');
+
+        redisClient.get('user_id_for_gcs_' + gcs_id, function(err, user_id) {
+            if( !user_id ){
+                console.log('gcs user not found ' + gcs_id);
+                io_client.disconnect(true);
+            }
+            else {
+                // get all robots of our client
+                RobotModel.filter({user_id: user_id}).run().then(function(result) {
+                    for( let i = 0; i < result.length; i++ ){
+                        io_client.join('robot_telemetry_' + result[i].id); // telemetry room
+                    }
+
+                    console.log('gcs ' + gcs_id + ' joined ' + result.length + ' robots');
+
+                    /*
+                    io_client.on('arming', function(data){
+                        console.log('arming');
+                        console.log(data);
+
+                        // TODO send arming MAVlink to board
+
+                        myMAV.createMessage("COMMAND_LONG", {
+                            'target_system': config.BOARD_SYS_ID
+                            ,'target_component': config.BOARD_COMP_ID
+                            ,'command': 400 // arm/disarm
+                            ,'confirmation': 0
+                            ,'param1': 1 // arm
+                            ,'param2': null
+                            ,'param3': null
+                            ,'param4': null
+                            ,'param5': null
+                            ,'param6': null
+                            ,'param7': null
+                        }, function(message){
+                            io_server.to('robot_' + data).emit('fromserver', message.buffer);
+
+                            // TODO зарегистрировать отправку сообщения и подождать подтверждения
+
+                        });
+
+                    });
+                    */
+
+                });
+
+                // now web client will receive messages from all its robots
+            }
+        });
+
+    } else {
+        console.log('gcs not found ' + gcs_id);
+        io_client.disconnect(true);
+    }
+
+
+    // client disconnected
+    io_client.on('disconnect', function(){
+        console.log('client disconnected');
+    });
+
+});
+
+
+
+
 
 // V. 1
 // Запуск сервера
-const http_server = app.listen(config.web_ui_server_port, () => {
+server.listen(config.web_ui_server_port, () => {
     console.log('Listening on port ' + config.web_ui_server_port);
 });
 

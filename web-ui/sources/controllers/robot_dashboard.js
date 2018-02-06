@@ -20,19 +20,26 @@ export default {
             // TODO придумать как сделать лучше,
             // если не нажимать кнопку, а перейти на страницу, то выскочит ошибка, тк объект не отвязан от данных
             scope.$$('telem').unbind();
-            scope.$$('robot_sys_load_gage').unbind();
+            scope.$$('robot_sys_load_gage').unbind(); //
+
 
             scope.show('list');
 
         });
 
         // bind list with data collection
-        console.log('Inner param: ' + scope.getParam("id"));
+        //console.log('Inner param: ' + scope.getParam("id"));
 
         let item = RobotsCollection.getItem(scope.getParam("id"));
 
         if( item && item.Robot ){
             item.Robot.activateDashboard();
+
+            scope.$$('button:arm').attachEvent('onItemClick', () => {
+
+                item.Robot.arm();
+
+            });
         }
         else {
             scope.show('list');
@@ -45,6 +52,8 @@ export default {
             this.unbind();
         });
         */
+
+
 
     }
 
@@ -62,7 +71,9 @@ export default {
         console.log('robot_dashboard DESTROY');
 
         scope.$$('button:return').detachEvent('onItemClick');
+        scope.$$('button:arm').detachEvent('onItemClick');
 
+        // scope.$$('robot_sys_load_gage').unbind();
 
 
         // TODO остановить передачу данных в панель

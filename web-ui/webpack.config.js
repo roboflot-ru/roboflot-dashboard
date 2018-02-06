@@ -27,6 +27,10 @@ module.exports = function(env) {
                     target: 'http://localhost:8090',
                     secure: false
                 }
+                ,'/socket.io': {
+                    target: 'http://localhost:3000',
+                    secure: false
+                }
             }
         },
 		module: {

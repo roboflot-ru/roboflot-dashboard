@@ -3,6 +3,7 @@ const type = thinky.type;
 const r = thinky.r;
 
 
+
 const User = thinky.createModel("User", {
     id: type.string(),
     name: type.string().min(2).max(50),
@@ -16,6 +17,18 @@ module.exports = User;
 
 const Robot = require('./robot');
 User.hasMany(Robot, "robots", "id", "user_id");
+
+const Mission = require('./mission');
+User.hasMany(Mission, "missions", "id", "user_id");
+
+
+
+
+
+
+
+
+
 
 
 //var Account = require(__dirname+'/models/account.js');

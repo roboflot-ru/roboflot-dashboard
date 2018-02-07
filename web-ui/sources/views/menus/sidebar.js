@@ -2,12 +2,13 @@ import {JetView, plugins} from "webix-jet";
 
 const menu_data = [
      {id: "dashboard/list", icon: "dashboard", value: "Dashboard"}
-    ,{id: "missions", icon: "globe", value:"Missions"}
+    ,{id: "missions/mlist", icon: "map", value:"Missions"}
     ,{id: "flightlogs", icon: "file-text-o", value:"Flight logs"}
     ,{id: "reports", icon: "line-chart", value:"Reports"}
     ,{id: "tools", icon: "wrench", value:"Tools"}
     ,{id: "docs", icon: "book", value:"Documentation"}
     ,{id: "logout", value: "Logout", icon: "sign-out"}
+
     // Multi level menu
     /*
     {id: "forms", icon: "pencil-square-o", value:"Forms",  data:[
@@ -30,7 +31,7 @@ export default class SidebarView extends JetView{
 			//,type: "menuTree2"
             //,css: "menu"
 			//,activeTitle: true
-            //,select: true
+            ,select: true
             //,data: menu_data
 			//,tooltip: {
 			//	template: function(obj){
@@ -45,8 +46,9 @@ export default class SidebarView extends JetView{
 					}
 				},
 				onAfterSelect:function(id){
-					//const item = this.getItem(id);
-					//webix.$$("title").parse({title: item.value, details: 'item.details'});
+					const item = this.getItem(id);
+					webix.$$("app_title").define('label', item.value);
+					webix.$$("app_title").refresh();
 				}
 			}
 		};

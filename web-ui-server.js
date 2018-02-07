@@ -274,7 +274,6 @@ app.get('/api/robots/', function (req, res) {
     });
 });
 
-
 //
 // Arming
 app.post('/api/robots/:robot_id/arm', function (req, res) {
@@ -318,8 +317,10 @@ app.post('/api/robots/:robot_id/arm', function (req, res) {
                 const timeout_resp = setTimeout(function(){
                     console.log('timeout');
                     res.json({status: 'error', message: 'timeout'});
-                    res.end();
                     resp_sent= true;
+
+                    redis_sub.unsubscribe('gcs_command_ack_' + req.params.robot_id);
+
                 }, 6000);
 
 
@@ -356,10 +357,10 @@ app.post('/api/robots/:robot_id/arm', function (req, res) {
                             resp_sent = true;
                             console.log('sending ack');
                             res.json({status: 'success', message: 'result = ' + command_resp.result});
-                            res.end();
                         }
 
                         clearTimeout(timeout_resp);
+                        redis_sub.unsubscribe('gcs_command_ack_' + req.params.robot_id);
                     }
                 });
             }
@@ -375,6 +376,73 @@ app.post('/api/robots/:robot_id/arm', function (req, res) {
 
 
 });
+
+
+
+
+//
+// MISSIONS
+//
+// list
+app.get('/api/missions/', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    console.log('get missions');
+    console.log(req.params);
+
+    res.json([]);
+
+});
+
+
+app.post('/api/missions/', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    console.log('post missions');
+    console.log(req.body);
+
+    // TODO добавить задание в БД
+
+    const new_id = 'nnii' + (new Date().getSeconds());
+
+    res.json({status: 'success', newid: new_id, id: new_id});
+
+});
+
+
+app.put('/api/missions/', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    console.log('put missions');
+    console.log(req.body);
+
+    res.json([]);
+
+});
+
+
+app.delete('/api/missions/', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    console.log('delete missions');
+    console.log(req.body);
+
+    res.json([]);
+
+});
+
 
 
 //

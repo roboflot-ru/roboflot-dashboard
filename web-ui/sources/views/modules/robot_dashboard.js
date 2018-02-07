@@ -31,10 +31,17 @@ const view_config = {
         {
             view: 'toolbar'
             ,type: 'clean'
+            ,height: 60
             ,elements: [
                 {view:'icon', localId: 'button:return', icon: 'chevron-left', tooltip: 'Return to list'}
-                ,{gravity: 4}
-                ,{view: 'button', value: 'ARM', localId: 'button:arm'}
+                ,{}
+                ,{view: 'icon', icon: 'bullhorn', badge: 1, width: 60}
+                ,{view: 'icon', icon: 'thermometer-half', badge: 2, width: 60}
+                ,{view: 'icon', icon: 'location-arrow', badge: 3, width: 60}
+                ,{view: 'icon', icon: 'battery-half', badge: '23.56', width: 60}
+                ,{}
+                ,{view: 'label', label: 'Disamed', width: 70}
+                ,{view: 'button', value: 'ARM', localId: 'button:arm', type: 'danger', width: 70}
                 ,{view:'icon', localId: 'button:settings', icon: 'cog', tooltip: 'Settings'}
             ]
         }
@@ -50,7 +57,7 @@ const view_config = {
                     // video screen
                     {
                         height: 270
-                        ,template: '<div style="text-align: center"><img id="robot_video" style="width:320px; height:240px;" src="" /></div>'
+                        ,template: '<div style="text-align: center"><img id="robot_video" style="width:320px; height:240px;" src="/static/images/novideo2.gif" /></div>'
                     }
 
                     // dashboard

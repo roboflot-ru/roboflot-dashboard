@@ -20,6 +20,16 @@ const User = require('./user');
 Robot.belongsTo(User, "user", "user_id", "id");
 
 
+
+
+
+
+
+
+
+
+
+
 //var Account = require(__dirname+'/models/account.js');
 //User.hasOne(Account, "user", "id", "userId");
 

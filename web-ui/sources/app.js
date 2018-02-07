@@ -7,7 +7,7 @@
 import "./styles/app.css";
 import config from './config';
 
-import {JetApp, plugins} from "webix-jet";
+import {JetApp, StoreRouter, plugins} from "webix-jet";
 import {authModel} from "models/authModel";
 import {auth} from "plugins/auth";
 
@@ -28,10 +28,12 @@ webix.ready(() => {
         ,google_maps_api_key: config.google_maps_api_key
         //,routerPrefix: ''
         ,debug: true
+        ,router: StoreRouter
         ,views: {
             "new_robot" : "modules.robot_form_new" // load /views/area/list.js
             ,'list': 'modules.robots_list'
             ,'robot': 'modules.robot_dashboard'
+			,'mlist': 'modules.missions_list'
         }
         ,routes: {
 		    //'/app/dashboard': '/app/dashboard/list'
@@ -88,6 +90,11 @@ webix.ready(() => {
 			text: "Please try to repeat the action <br> if error still occurs, please try to reload the page."
 		});
 	});
+
+	//
+	webix.protoUI({
+        name:"activeList"
+    }, webix.ui.list, webix.ActiveContent);
 
 });
 

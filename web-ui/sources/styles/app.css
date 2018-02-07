@@ -1,3 +1,21 @@
+.mission_seq {
+    float: left;
+    font-weight: bold;
+    padding: 0 5px;
+}
+.seq_title{
+    width: 200px;
+    overflow: hidden;
+    float: left;
+}
+.seq_button {
+    padding-left: 10px;
+    height: 60px;
+    padding-top:10px;
+    float: right;
+}
+
+
 .webixapp{
 	background: #ffd41a;
 }

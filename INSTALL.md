@@ -62,6 +62,15 @@ To check the quality of the source code, run the following command:
 Socket.io
 https://socket.io/docs/
 
+socket.io - Redis
+https://github.com/socketio/socket.io-redis
+
+Redis Configuration
+https://redis.io/topics/config
+
+Node-Redis client
+https://github.com/NodeRedis/node_redis
+
 Node Mavlink
 https://github.com/omcaree/node-mavlink
 
@@ -77,12 +86,6 @@ https://rethinkdb.com/docs/geo-support/javascript/
 thinky (RethinkDB ORM)
 http://justonepixel.com/thinky/documentation/api/thinky/
 
-Redis Configuration
-https://redis.io/topics/config
-
-Node-Redis client
-https://github.com/NodeRedis/node_redis
-
 Express session
 https://github.com/expressjs/session
 
@@ -92,8 +95,7 @@ https://www.npmjs.com/package/connect-redis
 node-scrypt
 https://github.com/barrysteyn/node-scrypt
 
-socket.io - Redis
-https://github.com/socketio/socket.io-redis
+
 
 
 

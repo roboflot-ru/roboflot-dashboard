@@ -4,10 +4,19 @@ const main_toolbar = {
     ,elements: [
         {view: "button", type: "icon", icon: "bars", width: 36
             ,click: function(){
-                $$("sidebar1").toggle();
+                webix.$$("sidebar1").toggle();
+
+                let icon = 'times';
+
+                if( $$("sidebar1").config.collapsed ){
+                    icon = 'bars';
+                }
+
+                this.define('icon', icon);
+                this.refresh();
             }
         },
-        { view: "label", label: "Roboflot GCS"},
+        { view: "label", id: 'app_title', label: "Roboflot GCS"},
         {},
         { view: "button", type: "icon", icon: "envelope-o", badge:4, width: 36},
         { view: "button", type: "icon", icon: "bell-o", badge:10, width: 36}

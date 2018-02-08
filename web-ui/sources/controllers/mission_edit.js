@@ -1,11 +1,15 @@
 // controllers / mission_edit
 
-import MissionsCollection from './../models/MissionsCollection'
+import MissionsCollection from './../models/MissionsCollection';
+import Mission from './../models/Mission';
 
 
 export default {
 
     ready: function(view){
+
+        MissionsCollection.getItem(view.$scope.getParam("id")).ref.openEditor(view);
+
         /*
              view = webix component view
              view.$scope = webixjet view instance
@@ -13,20 +17,10 @@ export default {
              view.$scope.show('/app/view') = change view
         */
 
-        webix.message(view.$scope.getParam("id"));
-
-        const points_table = view.queryView({ view:"datatable" });
-
-        points_table.attachEvent('onItemClick', function(id){
-            points_table.data.each( obj => points_table.closeSub(obj.id) );
-            points_table.openSub(id);
-        });
-
     }
 
     ,destroy: function(scope){
-
-
+        //Mission.clearMapAll();
     }
 
 }

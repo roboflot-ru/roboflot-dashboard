@@ -3,7 +3,7 @@
 
 const MissionsCollection = new webix.DataCollection({
     url: '/api/missions/'
-    ,save: '/api/missions/'
+    //,save: '/api/missions/'
     ,rules:{
         //"year": webix.rules.isNotEmpty,
         //"value": function(value){ return value > 0 }
@@ -14,7 +14,7 @@ const MissionsCollection = new webix.DataCollection({
         // After creating new robot it's added with RobotsCollection.add({data})
         'onAfterAdd': function(id){
             // Get new item data from colelction
-            let item = this.getItem(id);
+            //let item = this.getItem(id);
 
             // creating new instance of Robot for the new item
             // datastore.getItem(id).Robot will be Robot model instance
@@ -22,6 +22,10 @@ const MissionsCollection = new webix.DataCollection({
 
             // updating collection
             //this.updateItem(id, item);
+
+
+
+            // create Mission object
 
         }
 

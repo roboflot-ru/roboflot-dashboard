@@ -397,6 +397,18 @@ app.get('/api/missions/', function (req, res) {
 
 });
 
+app.get('/api/missions/:mission_id', function (req, res) {
+    if( !req.session.login ){
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
+
+    console.log('get mission ' + req.params.mission_id);
+
+    res.json({status: 'success', id: req.params.mission_id, name: 'Mission Name'});
+
+});
+
 
 app.post('/api/missions/', function (req, res) {
     if( !req.session.login ){
@@ -409,9 +421,9 @@ app.post('/api/missions/', function (req, res) {
 
     // TODO добавить задание в БД
 
-    const new_id = 'nnii' + (new Date().getSeconds());
+    const new_id = 'new_' + (new Date().getMilliseconds());
 
-    res.json({status: 'success', newid: new_id, id: new_id});
+    res.json({ status: 'success', id: new_id, name: 'New mission' });
 
 });
 

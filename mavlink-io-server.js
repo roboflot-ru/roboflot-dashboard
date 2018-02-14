@@ -692,7 +692,7 @@ io_server.on('connection', function(io_client){
 
             }
         }).error(function(err){
-            console.log(err);
+            //console.log(err);
             console.log('robot not found ' + robot_id);
             io_client.disconnect(true);
         });

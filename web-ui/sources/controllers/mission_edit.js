@@ -8,7 +8,12 @@ export default {
 
     ready: function(view){
 
-        MissionsCollection.getItem(view.$scope.getParam("id")).ref.openEditor(view);
+
+        const mission = MissionsCollection.getItem(view.$scope.getParam("id"));
+        if( mission ) mission.ref.openEditor(view);
+        else {
+            view.$scope.show('./modules.missions_list');
+        }
 
         /*
              view = webix component view

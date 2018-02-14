@@ -271,7 +271,10 @@ app.get('/api/robots/', function (req, res) {
 
     RobotModel.filter({user_id: req.session.userid}).run().then(function(result) {
         res.json(result);
+    }).error(function(){
+        res.json({status: 'error'});
     });
+
 });
 
 //
@@ -383,75 +386,263 @@ app.post('/api/robots/:robot_id/arm', function (req, res) {
 //
 // MISSIONS
 //
-// list
+
+const MissionModel = require('./models/mission.js');
+const MissionItemModel = require('./models/mission_item.js');
+const thinky = require('./util/thinky.js');
+
+// list all missions
 app.get('/api/missions/', function (req, res) {
     if( !req.session.login ){
         res.status(401).json({status: 'unauthorized'});
         return;
     }
 
-    console.log('get missions');
-    console.log(req.params);
-
-    res.json([]);
+    MissionModel.filter({user_id: req.session.userid}).run().then(function(result) {
+        res.json(result);
+    }).error(function(){
+        res.json({status: 'error'});
+    });
 
 });
 
+// get single mission data
 app.get('/api/missions/:mission_id', function (req, res) {
     if( !req.session.login ){
         res.status(401).json({status: 'unauthorized'});
         return;
     }
 
-    console.log('get mission ' + req.params.mission_id);
+    MissionModel.get(req.params.mission_id).getJoin({
+        items: {
+          _apply: function (sequence) {
+            return sequence.orderBy(thinky.r.asc('seq'))
+          }
+        }
+    }).run().then(function(mission) {
+        if( mission.user_id != req.session.userid ){
+            res.json({status: 'error'});
+        }
+        else {
+            let items = [], pos = null;
+            for( let i = 0, k = mission.items.length; i < k; i++ ){
 
-    res.json({status: 'success', id: req.params.mission_id, name: 'Mission Name'});
+                if( mission.items[i].position.coordinates ) pos = {lat: mission.items[i].position.coordinates[0], lng: mission.items[i].position.coordinates[1]};
+
+                items.push({
+                    id: mission.items[i].id
+                    ,seq: mission.items[i].seq
+                    ,position: pos
+                    ,alt: mission.items[i].alt
+                    ,alt_rel: mission.items[i].alt_rel
+                    ,hold_time: mission.items[i].hold_time
+                    ,speed: mission.items[i].speed
+                });
+            }
+
+            let home = null;
+            if( mission.home && mission.home.coordinates ){
+                home = { lat: mission.home.coordinates[0], lng: mission.home.coordinates[1] };
+            }
+
+            res.json({
+                status: 'success'
+                ,data: {
+                     name: mission.name
+                    ,rtl_end: mission.rtl_end
+                    ,takeoff_alt: mission.takeoff_alt
+                    ,home: home
+                    ,items: items
+                }
+            });
+        }
+    }).error(function(){
+        res.json({status: 'error'});
+    });
 
 });
 
-
+// Save new mission
 app.post('/api/missions/', function (req, res) {
     if( !req.session.login ){
         res.status(401).json({status: 'unauthorized'});
         return;
     }
 
-    console.log('post missions');
-    console.log(req.body);
+    if( req.body.name ){
+        // Create new mission
+        const new_mission = new MissionModel({
+            name: req.body.name
+            ,user_id: req.session.userid
+        });
 
-    // TODO добавить задание в БД
+        try{
+            new_mission.validate();
 
-    const new_id = 'new_' + (new Date().getMilliseconds());
+            new_mission.save().then(function(doc) {
+                console.log('mission saved ' + doc.id);
+                res.json({ status: 'success', id: doc.id, name: req.body.name });
+            }).error( e => {
+                console.log('mission save error');
+                res.json({status: 'error', message: 'error'});
+            });
+        }
+        catch(err) {
+            console.log("mission is not valid");
+            res.json({status: 'error', message: 'Check fields'});
+        }
 
-    res.json({ status: 'success', id: new_id, name: 'New mission' });
+    } else {
+        res.json({status: 'error', message: 'Check fields'});
+    }
 
 });
 
-
-app.put('/api/missions/', function (req, res) {
+// Update mission data
+app.put('/api/missions/:mission_id/update', function (req, res) {
     if( !req.session.login ){
         res.status(401).json({status: 'unauthorized'});
         return;
     }
 
-    console.log('put missions');
-    console.log(req.body);
+    //console.log('put mission update ' + req.params.mission_id);
+    //console.log(req.body);
 
-    res.json([]);
+    MissionModel.get(req.params.mission_id).run().then(function(mission) {
+        // Check user in mission
+        if( mission.user_id != req.session.userid ){
+            res.json({status: 'error', message: 'error'});
+        }
+
+        // Updating mission data
+        else {
+
+            // TODO validate fields
+
+            // Update mission name
+            if( req.body.name && req.body.name.length > 2 ){
+                mission.name = req.body.name;
+            }
+
+            // Update takeoff alt
+            if( req.body.takeoff_alt && parseInt(req.body.takeoff_alt) > 1 ){
+                mission.takeoff_alt = parseInt(req.body.takeoff_alt);
+            }
+
+            // Update RTL on mission end
+            if( req.body.rtl !== undefined ){
+                console.log(req.body.rtl);
+                mission.rtl_end = (req.body.rtl == 1);
+            }
+
+            // Update home position
+            if( req.body.home ){
+                const home_pos = JSON.parse(req.body.home);
+                if( home_pos.length == 2 ){
+                    mission.home = [parseFloat(home_pos[0]), parseFloat(home_pos[1])];
+                }
+            }
+
+            // Saving data to DB
+            mission.save().then(function(doc){
+                //console.log('data saved');
+                res.json({
+                    status: 'success'
+                    ,data: {
+                        name: doc.name
+                        ,rtl_end: doc.rtl_end
+                        ,takeoff_alt: doc.takeoff_alt
+                        ,home: [doc.home.coordinates[0], doc.home.coordinates[1]]
+                    }
+                });
+            }).error(function(err){
+                res.json({status: 'error', message: 'data error'});
+            });
+
+        }
+    });
 
 });
 
+// Add new waypoints to mission
+app.post('/api/missions/:mission_id/waypoints/', function (req, res) {
+    if (!req.session.login) {
+        res.status(401).json({status: 'unauthorized'});
+        return;
+    }
 
-app.delete('/api/missions/', function (req, res) {
+    console.log('saving waypoint');
+    console.log(req.body);
+
+    // Get mission first
+    MissionModel.get(req.params.mission_id).getJoin().run().then(function(mission) {
+        if( mission.user_id != req.session.userid ){
+            res.json({status: 'error'});
+        }
+        else {
+
+            // TODO get max seq
+            if( mission.items.length ){
+                for( let i = 0, k = mission.items.length; i < k; i++ ){
+                    console.log(mission.items[i].seq);
+                }
+            }
+
+            // Then add new waypoint
+            const waypoint = new MissionItemModel({
+                mission_id: req.params.mission_id
+                ,seq: mission.items.length + 1 // TODO how to check?
+                ,position: [parseFloat(req.body.lat), parseFloat(req.body.lon)]
+                ,alt: req.body.alt
+                ,alt_rel: req.body.alt_rel
+                ,hold_time: req.body.hold
+                ,speed: req.body.speed
+            });
+
+            waypoint.save().then(function(doc){
+                console.log('waypoint saved');
+                res.json({status: 'success'});
+            }).error(function(err){
+                console.log('error saving waypoint');
+                console.log(err);
+                res.json({status: 'error'});
+            });
+        }
+    }).error(function(){
+        res.json({status: 'error'});
+    });
+
+
+});
+
+// Delete mission
+app.delete('/api/missions/:mission_id', function (req, res) {
     if( !req.session.login ){
         res.status(401).json({status: 'unauthorized'});
         return;
     }
 
-    console.log('delete missions');
-    console.log(req.body);
+    console.log('delete mission ' + req.params.mission_id);
 
-    res.json([]);
+
+    MissionModel.get(req.params.mission_id).run().then(function(mission) {
+        if( mission.user_id != req.session.userid ){
+            res.json({status: 'error'});
+        }
+        else {
+            mission.deleteAll({items: true}).then(function(result) {
+                if( !result.isSaved() ){
+                    res.json({status: 'success'});
+                }
+                else {
+                    res.json({status: 'error'});
+                }
+            });
+
+        }
+    }).error(function(){
+        res.json({status: 'error'});
+    });
 
 });
 

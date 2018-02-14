@@ -22,6 +22,7 @@ export class authModel {
             this.credentials = Cookies.getJSON("user");
             console.log(this.credentials);
         }
+        // TODO сделать проверку времени
 
         return this.credentials;
     }

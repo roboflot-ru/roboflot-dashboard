@@ -1,4 +1,4 @@
-//import Robot from './Robot';
+import Mission from './Mission';
 
 
 const MissionsCollection = new webix.DataCollection({
@@ -38,10 +38,9 @@ const MissionsCollection = new webix.DataCollection({
             let item = {};
             if (this.data.each){
                 this.data.each(function(obj){
-                    // creating new instance of Robot for the new item
-                    //obj['Robot'] = new Robot(obj);
-
-                    //this.updateItem(obj.id, obj);
+                    //const item = this.getItem(obj.id);
+                    obj.ref = new Mission(obj.id);
+                    this.updateItem(obj.id, obj);
                 });
             }
 

@@ -10,6 +10,7 @@ import config from './config';
 import {JetApp, StoreRouter, plugins} from "webix-jet";
 import {authModel} from "models/authModel";
 import {auth} from "plugins/auth";
+import {dateFormat} from 'plugins/dateformat';
 
 import io from 'socket.io-client';
 
@@ -61,6 +62,18 @@ webix.ready(() => {
         }
     });
     */
+
+    webix.attachEvent("onLoadError", function(text, xml, ajax, owner){
+        console.log('ajax error');
+        const resp = JSON.parse(text);
+        console.log(resp.status );
+        if( resp && resp.status ){
+            if( 'unauthorized' == resp.status ){
+                console.log('GO TO LOGIN');
+                app.getService('auth').logout();
+            }
+        }
+    });
 
     //
     // Render app

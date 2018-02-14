@@ -4,23 +4,24 @@ const r = thinky.r;
 
 
 
-const Mission = thinky.createModel("Missions", {
+const MissionItem = thinky.createModel("MissionItems", {
     id: type.string()
-    ,name: type.string().min(2).max(50).required()
-    ,user_id: type.string()
-    ,home: type.point()
-    ,rtl_end: type.boolean().default(true)
-    ,takeoff_alt: type.number().min(0).max(1000).default(10)
-    ,createdAt: type.date().default(r.now())
+    ,mission_id: type.string().required()
+    ,title: type.string().max(50).optional()
+    ,seq: type.number().min(0).integer().required()
+    ,position: type.point().required()
+    ,alt: type.number().required()
+    ,alt_rel: type.string().enum('ground', 'home').default('home')
+    ,hold_time: type.number().min(0).max(10000).default(0)
+    ,speed: type.number().min(0).max(1000).default(0)
+    ,camera: type.object()
 });
 
-module.exports = Mission;
+module.exports = MissionItem;
 
-const User = require('./user');
-Mission.belongsTo(User, "user", "user_id", "id");
+const Mission = require('./mission');
+MissionItem.belongsTo(Mission, "mission", "mission_id", "id");
 
-const MissionItem = require('./mission_item');
-Mission.hasMany(MissionItem, "items", "id", "mission_id");
 
 
 

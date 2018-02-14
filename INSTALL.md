@@ -120,3 +120,6 @@ https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=r
 G Maps Examples
 https://developers.google.com/maps/documentation/javascript/examples/user-editable-shapes?hl=ru
 
+Dateformat
+http://blog.stevenlevithan.com/archives/date-time-format
+

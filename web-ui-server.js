@@ -398,7 +398,7 @@ app.get('/api/missions/', function (req, res) {
         return;
     }
 
-    MissionModel.filter({user_id: req.session.userid}).run().then(function(result) {
+    MissionModel.filter({user_id: req.session.userid}).orderBy('createdAt').run().then(function(result) {
         res.json(result);
     }).error(function(){
         res.json({status: 'error'});
